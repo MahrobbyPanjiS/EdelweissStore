@@ -1,15 +1,18 @@
+// [code lama + code hasil pembaharuan = code update]
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Mengimpor komponen tata letak (Sesuaikan path jika diperlukan)
+// Mengimpor komponen tata letak
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
 // Mengimpor komponen halaman
 import Home from './pages/Home';
 import Store from './pages/Store';
-import Wiki from './pages/Wiki'; // Pastikan Anda telah membuat file ini
-import Help from './pages/Help'; // Pastikan Anda telah membuat file ini
+import Wiki from './pages/Wiki';
+import Help from './pages/Help';
+import Profile from './pages/Profile'; // Import Profile
+import Settings from './pages/Settings'; // Import Settings
 
 export default function App() {
   return (
@@ -25,6 +28,8 @@ export default function App() {
             <Route path="/store" element={<Store />} />
             <Route path="/wiki" element={<Wiki />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/profile" element={<Profile />} /> {/* Route Profile */}
+            <Route path="/settings" element={<Settings />} /> {/* Route Settings */}
           </Routes>
         </main>
         
