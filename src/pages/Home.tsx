@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
+// [code lama + code hasil pembaharuan = code update]
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Copy, CheckCircle2, Server, ScrollText } from 'lucide-react';
+
+// Mengimpor library animasi GSAP dan plugin ScrollTrigger
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+// Mendaftarkan plugin ScrollTrigger agar efek muncul saat di-scroll berfungsi
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
   // Tata kelola state untuk slider gambar
@@ -15,6 +24,43 @@ export default function Home() {
   const [serverStatus, setServerStatus] = useState({ online: false, players: 0, max: 0, loading: true });
   const [copied, setCopied] = useState(false);
   const serverIP = "play.edelweisscraft.com";
+
+  // Referensi kontainer utama untuk membatasi cakupan (scope) animasi GSAP
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Implementasi animasi GSAP
+  useGSAP(() => {
+    // 1. Animasi untuk bagian Hero (Muncul pertama kali saat halaman dimuat)
+    gsap.from('.hero-badge', { y: 30, opacity: 0, duration: 1, ease: 'power3.out' });
+    gsap.from('.hero-title', { y: 30, opacity: 0, duration: 1, delay: 0.2, ease: 'power3.out' });
+    gsap.from('.hero-desc', { y: 30, opacity: 0, duration: 1, delay: 0.4, ease: 'power3.out' });
+    gsap.from('.hero-buttons', { y: 30, opacity: 0, duration: 1, delay: 0.6, ease: 'power3.out' });
+
+    // 2. Animasi untuk bagian Berita menggunakan ScrollTrigger (Berurutan / Stagger)
+    gsap.from('.news-card', {
+      scrollTrigger: {
+        trigger: '.news-section',
+        start: 'top 80%', // Animasi dimulai saat bagian atas elemen mencapai 80% dari viewport
+      },
+      y: 50,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.2, // Jeda waktu kemunculan antar kartu berita
+      ease: 'power3.out'
+    });
+
+    // 3. Animasi untuk bagian Slider menggunakan ScrollTrigger
+    gsap.from('.slider-section', {
+      scrollTrigger: {
+        trigger: '.slider-section',
+        start: 'top 80%',
+      },
+      scale: 0.95,
+      opacity: 0,
+      duration: 1,
+      ease: 'power3.out'
+    });
+  }, { scope: containerRef });
 
   const nextSlide = () => setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
@@ -56,7 +102,7 @@ export default function Home() {
   };
 
   return (
-    <div className="animate-in fade-in duration-500">
+    <div ref={containerRef} className="overflow-hidden">
       
       {/* Bagian Hero & Status Server */}
       <section className="relative py-24 px-6 text-center overflow-hidden">
@@ -65,7 +111,7 @@ export default function Home() {
           <img src={slides[0]} alt="Background" className="w-full h-full object-cover opacity-30 blur-sm" />
         </div>
         <div className="relative z-20 max-w-3xl mx-auto">
-          <div className="mb-6 inline-flex items-center gap-2 bg-[#1e293b]/80 border border-gray-700 rounded-full px-4 py-1.5 text-sm">
+          <div className="hero-badge mb-6 inline-flex items-center gap-2 bg-[#1e293b]/80 border border-gray-700 rounded-full px-4 py-1.5 text-sm">
             <Server size={16} className={serverStatus.online ? "text-green-500" : "text-red-500"} />
             {serverStatus.loading ? (
               <span className="text-gray-400">Memeriksa status server...</span>
@@ -75,13 +121,13 @@ export default function Home() {
               <span className="text-red-400">Server sedang Offline / Maintenance</span>
             )}
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
+          <h1 className="hero-title text-5xl md:text-6xl font-bold tracking-tight mb-6">
             Selamat Datang di <span className="text-cyan-400">Edelweiss Craft</span>
           </h1>
-          <p className="text-lg text-gray-300 mb-8 leading-relaxed">
+          <p className="hero-desc text-lg text-gray-300 mb-8 leading-relaxed">
             Mulailah petualangan epik Anda di dunia yang penuh dengan misteri, sistem RPG yang mendalam, dan komunitas yang ramah. Bangun kerajaan Anda, kalahkan monster tangguh, dan jadilah legenda!
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="hero-buttons flex flex-col sm:flex-row items-center justify-center gap-4">
             <button 
               onClick={handleCopyIP}
               className="group bg-[#1e293b] border border-gray-700 hover:border-cyan-500 rounded-full px-6 py-3 font-mono text-sm flex items-center gap-3 transition-all cursor-pointer"
@@ -97,14 +143,14 @@ export default function Home() {
       </section>
 
       {/* Bagian Papan Berita (News & Patch Notes) */}
-      <section className="py-16 max-w-6xl mx-auto px-6">
+      <section className="news-section py-16 max-w-6xl mx-auto px-6">
         <div className="flex items-center gap-3 mb-10 border-b border-gray-800 pb-4">
           <ScrollText className="text-cyan-400" size={28} />
           <h2 className="text-2xl font-bold">Berita & Pembaruan Server</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          <article className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
+          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
             <div className="text-xs text-gray-400 mb-3 flex items-center justify-between">
               <span>Pembaruan Versi</span>
               <span className="bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded text-[10px] font-bold">TERBARU</span>
@@ -115,7 +161,7 @@ export default function Home() {
             </p>
           </article>
 
-          <article className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
+          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
             <div className="text-xs text-gray-400 mb-3">Keamanan Jaringan</div>
             <h3 className="text-lg font-bold mb-2">Peningkatan Sistem Anti-Bot</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
@@ -123,7 +169,7 @@ export default function Home() {
             </p>
           </article>
 
-          <article className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
+          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
             <div className="text-xs text-gray-400 mb-3 flex items-center justify-between">
               <span>Bocoran Fitur (Teaser)</span>
               <span className="bg-purple-500/10 text-purple-400 px-2 py-1 rounded text-[10px] font-bold">SEGERA</span>
@@ -138,7 +184,7 @@ export default function Home() {
       </section>
 
       {/* Bagian Slider Gambar Server */}
-      <section className="py-16 bg-[#14141a]">
+      <section className="slider-section py-16 bg-[#14141a]">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-2xl font-bold mb-8 text-center">Cuplikan Komunitas</h2>
           <div className="relative rounded-2xl overflow-hidden group border border-gray-800 shadow-2xl">

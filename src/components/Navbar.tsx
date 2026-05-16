@@ -1,7 +1,7 @@
 // [code lama + code hasil pembaharuan = code update]
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Home, Book, LifeBuoy, Menu, X, User, ShieldAlert } from 'lucide-react';
+import { ShoppingCart, Home, Book, LifeBuoy, Menu, X, User, ShieldAlert, LayoutDashboard } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,6 +12,8 @@ export default function Navbar() {
     { name: 'Store', path: '/store', icon: <ShoppingCart size={18} /> },
     { name: 'Wiki / Panduan', path: '/wiki', icon: <Book size={18} /> },
     { name: 'Bantuan', path: '/help', icon: <LifeBuoy size={18} /> },
+    // Menambahkan Menu Layout Builder untuk eksperimen UI
+    { name: 'UI Builder', path: '/layout-builder', icon: <LayoutDashboard size={18} /> },
   ];
 
   return (
