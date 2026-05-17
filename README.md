@@ -1,73 +1,46 @@
-# React + TypeScript + Vite
+<div align="center">
+  <img src="./src/assets/hero.png" alt="Edelweiss Craft Web Store Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px;">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+  <h1>🌌 Edelweiss Craft - Official Web Store</h1>
+  
+  <p>Portal web store, panduan, dan manajemen akun terintegrasi untuk komunitas server Minecraft RPG <b>Edelweiss Craft</b>.</p>
 
-Currently, two official plugins are available:
+  <p>
+    <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19">
+    <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+    <img src="https://img.shields.io/badge/Vite-6.x-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+    <img src="https://img.shields.io/badge/Tailwind_CSS-v4.0-06B6D4?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS v4">
+    <img src="https://img.shields.io/badge/GSAP-Animation-green?style=for-the-badge&logo=greensock&logoColor=white" alt="GSAP">
+  </p>
+</div>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🚀 Fitur Utama
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **🎮 Beranda Dinamis & Status Server**: Menampilkan jumlah pemain online secara *real-time* langsung dari API server Minecraft beserta sliders cuplikan komunitas yang ciamik menggunakan animasi **GSAP & ScrollTrigger**.
+- **🛒 Katalog Store Teroptimasi**: Sistem *grid layout* produk (rank, item, kosmetik) yang responsif dan *mobile-friendly*, dilengkapi dengan keranjang belanja interaktif.
+- **📜 Wiki & Panduan Server**: Dokumentasi lengkap sistem *tier rank*, perintah dasar (*commands in-game*), serta hak akses fasilitas player yang dikemas menggunakan komponen *accordion accordion-fold*.
+- **🧍 3D Skin Viewer**: Fitur penampil karakter 3D interaktif pada halaman Profil menggunakan **Skinview3D** yang mendukung kustomisasi URL skin serta kontrol animasi karakter (*idle, walk, run, fly, spin*).
+- **🛠️ Admin Panel (CMS)**: Dashboard kendali penuh untuk mengelola konfigurasi maintenance server, pembuatan berita/patch notes baru, serta manajemen harga katalog produk toko.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 📂 Struktur Folder (Clean & Scalable Architecture)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Project ini menggunakan standarisasi struktur folder modular profesional agar mudah dikembangkan dalam skala besar:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```text
+frontend/
+├── public/                 # Aset statis global yang disajikan apa adanya (misal: favicon, icon SVG)
+└── src/
+    ├── assets/             # Gambar, logo, font, dan berkas media lokal pendukung komponen
+    ├── components/         # Komponen UI satuan yang reusable (tombol, kartu, modal kecil)
+    ├── layout/             # Komponen struktural pembungkus halaman (Navbar, Footer, Sidebar)
+    ├── pages/              # Komponen halaman utama dan routing (Home, Store, Wiki, Profile, dll)
+    ├── services/           # Logika pemanggilan API eksternal dan integrasi data backend
+    ├── utils/              # Fungsi pembantu (helper functions) dan utilitas global
+    ├── App.css             # Gaya CSS utama cakupan global
+    ├── App.tsx             # Pengatur routing utama aplikasi
+    ├── index.css           # Konfigurasi dan injeksi Tailwind CSS v4
+    └── main.tsx            # Entry point utama aplikasi React
