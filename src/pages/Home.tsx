@@ -105,37 +105,39 @@ export default function Home() {
     <div ref={containerRef} className="overflow-hidden">
       
       {/* Bagian Hero & Status Server */}
-      <section className="relative py-24 px-6 text-center overflow-hidden">
+      <section className="relative py-16 md:py-24 px-4 sm:px-6 text-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-[#0f0f13]/85 z-10"></div>
           <img src={slides[0]} alt="Background" className="w-full h-full object-cover opacity-30 blur-sm" />
         </div>
         <div className="relative z-20 max-w-3xl mx-auto">
-          <div className="hero-badge mb-6 inline-flex items-center gap-2 bg-[#1e293b]/80 border border-gray-700 rounded-full px-4 py-1.5 text-sm">
+          <div className="hero-badge mb-4 md:mb-6 inline-flex items-center gap-2 bg-[#1e293b]/80 border border-gray-700 rounded-full px-4 py-1.5 text-xs md:text-sm">
             <Server size={16} className={serverStatus.online ? "text-green-500" : "text-red-500"} />
             {serverStatus.loading ? (
               <span className="text-gray-400">Memeriksa status server...</span>
             ) : serverStatus.online ? (
               <span className="text-gray-200"><span className="text-green-400 font-bold">{serverStatus.players}</span> / {serverStatus.max} Pemain Online</span>
             ) : (
-              <span className="text-red-400">Server sedang Offline / Maintenance</span>
+              <span className="text-red-400">Server Offline / Maintenance</span>
             )}
           </div>
-          <h1 className="hero-title text-5xl md:text-6xl font-bold tracking-tight mb-6">
+          {/* Teks diatur ukurannya untuk mobile (text-4xl) dan desktop (md:text-6xl) */}
+          <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6">
             Selamat Datang di <span className="text-cyan-400">Edelweiss Craft</span>
           </h1>
-          <p className="hero-desc text-lg text-gray-300 mb-8 leading-relaxed">
+          <p className="hero-desc text-base md:text-lg text-gray-300 mb-8 leading-relaxed px-2">
             Mulailah petualangan epik Anda di dunia yang penuh dengan misteri, sistem RPG yang mendalam, dan komunitas yang ramah. Bangun kerajaan Anda, kalahkan monster tangguh, dan jadilah legenda!
           </p>
-          <div className="hero-buttons flex flex-col sm:flex-row items-center justify-center gap-4">
+          {/* Tombol dibuat memenuhi layar (w-full) di mobile, dan sejajar (w-auto) di desktop */}
+          <div className="hero-buttons flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
             <button 
               onClick={handleCopyIP}
-              className="group bg-[#1e293b] border border-gray-700 hover:border-cyan-500 rounded-full px-6 py-3 font-mono text-sm flex items-center gap-3 transition-all cursor-pointer"
+              className="group w-full sm:w-auto bg-[#1e293b] border border-gray-700 hover:border-cyan-500 rounded-full px-6 py-3.5 font-mono text-sm flex items-center justify-center gap-3 transition-all cursor-pointer"
             >
               {copied ? <CheckCircle2 size={18} className="text-green-500" /> : <Copy size={18} className="text-gray-400 group-hover:text-cyan-400" />}
               {copied ? <span className="text-green-500 font-bold">IP Tersalin!</span> : serverIP}
             </button>
-            <Link to="/store" className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-8 py-3 rounded-full transition-transform active:scale-95">
+            <Link to="/store" className="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-8 py-3.5 rounded-full transition-transform active:scale-95 text-center">
               Dukung Server
             </Link>
           </div>
@@ -143,38 +145,42 @@ export default function Home() {
       </section>
 
       {/* Bagian Papan Berita (News & Patch Notes) */}
-      <section className="news-section py-16 max-w-6xl mx-auto px-6">
-        <div className="flex items-center gap-3 mb-10 border-b border-gray-800 pb-4">
-          <ScrollText className="text-cyan-400" size={28} />
-          <h2 className="text-2xl font-bold">Berita & Pembaruan Server</h2>
+      <section className="news-section py-12 md:py-16 max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8 md:mb-10 border-b border-gray-800 pb-4">
+          <ScrollText className="text-cyan-400 hidden sm:block" size={28} />
+          <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+            <ScrollText className="text-cyan-400 sm:hidden" size={24} /> Berita & Pembaruan
+          </h2>
         </div>
+        
+        {/* Grid otomatis merubah dari 1 kolom (Mobile) ke 3 kolom (Desktop) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
+          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-5 md:p-6 hover:bg-[#1e293b]/50 transition-colors">
             <div className="text-xs text-gray-400 mb-3 flex items-center justify-between">
               <span>Pembaruan Versi</span>
               <span className="bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded text-[10px] font-bold">TERBARU</span>
             </div>
-            <h3 className="text-lg font-bold mb-2">Migrasi Server ke 1.21.11</h3>
+            <h3 className="text-base md:text-lg font-bold mb-2">Migrasi Server ke 1.21.11</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
               Proses pembaruan versi server telah selesai. Seluruh pemain kini dapat menikmati stabilitas yang lebih baik dan perbaikan kompatibilitas plugin di versi 1.21.11.
             </p>
           </article>
 
-          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
+          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-5 md:p-6 hover:bg-[#1e293b]/50 transition-colors">
             <div className="text-xs text-gray-400 mb-3">Keamanan Jaringan</div>
-            <h3 className="text-lg font-bold mb-2">Peningkatan Sistem Anti-Bot</h3>
+            <h3 className="text-base md:text-lg font-bold mb-2">Peningkatan Sistem Anti-Bot</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
               Kami telah memperketat lapisan keamanan untuk mengatasi serangan masif. Sistem kini lebih tangkas dalam memblokir akun-akun bot yang mencoba masuk secara bersamaan.
             </p>
           </article>
 
-          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 hover:bg-[#1e293b]/50 transition-colors">
+          <article className="news-card bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-5 md:p-6 hover:bg-[#1e293b]/50 transition-colors">
             <div className="text-xs text-gray-400 mb-3 flex items-center justify-between">
               <span>Bocoran Fitur (Teaser)</span>
               <span className="bg-purple-500/10 text-purple-400 px-2 py-1 rounded text-[10px] font-bold">SEGERA</span>
             </div>
-            <h3 className="text-lg font-bold mb-2">Sistem Manajemen Kuda Custom</h3>
+            <h3 className="text-base md:text-lg font-bold mb-2">Sistem Manajemen Kuda Custom</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
               Tim pengembang sedang merancang plugin eksklusif dari nol untuk memberikan pengalaman manajemen *mount* (kuda) dan istal yang belum pernah ada sebelumnya. Bersiaplah!
             </p>
@@ -184,23 +190,24 @@ export default function Home() {
       </section>
 
       {/* Bagian Slider Gambar Server */}
-      <section className="slider-section py-16 bg-[#14141a]">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="text-2xl font-bold mb-8 text-center">Cuplikan Komunitas</h2>
-          <div className="relative rounded-2xl overflow-hidden group border border-gray-800 shadow-2xl">
+      <section className="slider-section py-12 md:py-16 bg-[#14141a]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <h2 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">Cuplikan Komunitas</h2>
+          <div className="relative rounded-xl md:rounded-2xl overflow-hidden group border border-gray-800 shadow-2xl">
             <div className="aspect-video relative">
               <img src={slides[currentSlide]} alt={`Slide ${currentSlide + 1}`} className="w-full h-full object-cover transition-opacity duration-500" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             </div>
-            <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-cyan-500 hover:text-black">
+            {/* Tombol navigasi slider diperbesar area kliknya untuk layar sentuh */}
+            <button onClick={prevSlide} className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 p-1.5 md:p-2 bg-black/50 text-white rounded-full opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-cyan-500 hover:text-black">
               <ChevronLeft size={24} />
             </button>
-            <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-cyan-500 hover:text-black">
+            <button onClick={nextSlide} className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-1.5 md:p-2 bg-black/50 text-white rounded-full opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-cyan-500 hover:text-black">
               <ChevronRight size={24} />
             </button>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            <div className="absolute bottom-3 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               {slides.map((_, i) => (
-                <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentSlide ? 'bg-cyan-400 w-4' : 'bg-white/50'}`} />
+                <div key={i} className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-all ${i === currentSlide ? 'bg-cyan-400 w-3 md:w-4' : 'bg-white/50'}`} />
               ))}
             </div>
           </div>

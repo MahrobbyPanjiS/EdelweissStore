@@ -13,12 +13,12 @@ import Wiki from './pages/Wiki';
 import Help from './pages/Help';
 import Profile from './pages/Profile'; 
 import Settings from './pages/Settings'; 
-import LayoutBuilder from './pages/LayoutBuilder'; // Import halaman Grid Builder baru
 
 export default function App() {
   return (
     <Router>
       <div className="min-h-screen bg-[#0f0f13] text-white font-sans selection:bg-cyan-500 selection:text-white flex flex-col">
+        
         {/* Navbar akan selalu tampil di atas di semua halaman */}
         <Navbar />
         
@@ -31,12 +31,12 @@ export default function App() {
             <Route path="/help" element={<Help />} />
             <Route path="/profile" element={<Profile />} /> 
             <Route path="/settings" element={<Settings />} /> 
-            <Route path="/layout-builder" element={<LayoutBuilder />} /> {/* Route Layout Builder */}
           </Routes>
         </main>
         
         {/* Footer akan selalu tampil di bawah di semua halaman */}
         <Footer />
+        
       </div>
     </Router>
   );
