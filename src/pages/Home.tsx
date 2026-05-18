@@ -49,11 +49,11 @@ export default function Home() {
   };
 
   useGSAP(() => {
-    // 1. Animasi Hero
-    gsap.from('.hero-badge', { y: 30, opacity: 0, duration: 1, ease: 'power3.out' });
-    gsap.from('.hero-title', { y: 30, opacity: 0, duration: 1, delay: 0.2, ease: 'power3.out' });
-    gsap.from('.hero-desc', { y: 30, opacity: 0, duration: 1, delay: 0.4, ease: 'power3.out' });
-    gsap.from('.hero-buttons', { y: 30, opacity: 0, duration: 1, delay: 0.6, ease: 'power3.out' });
+    // 1. Animasi Hero (Diubah menggunakan fromTo agar tidak tersangkut opacity 0)
+    gsap.fromTo('.hero-badge', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: 'power3.out' });
+    gsap.fromTo('.hero-title', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 1, delay: 0.2, ease: 'power3.out' });
+    gsap.fromTo('.hero-desc', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 1, delay: 0.4, ease: 'power3.out' });
+    gsap.fromTo('.hero-buttons', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 1, delay: 0.6, ease: 'power3.out' });
 
     // 2. Animasi Berita
     if (newsList.length > 0) {
