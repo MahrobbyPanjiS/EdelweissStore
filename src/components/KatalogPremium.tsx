@@ -1,5 +1,4 @@
-// [code lama + code hasil pembaharuan = code update]
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Crown, ShoppingCart, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 // Mengimpor library Swiper untuk efek 3D Coverflow Card & Navigasi
@@ -21,6 +20,19 @@ type KatalogPremiumProps = {
 };
 
 export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps) {
+  // ========================================================
+  // STATE RADAR PENDETEKSI UKURAN LAYAR HP / PC (YANG HILANG)
+  // ========================================================
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize(); // Cek saat pertama kali web dibuka
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  // ========================================================
+
   const handleAddToCart = (e: React.MouseEvent, productName: string) => {
     e.stopPropagation(); 
     alert(`Berhasil menambahkan ${productName} ke Keranjang!`);
