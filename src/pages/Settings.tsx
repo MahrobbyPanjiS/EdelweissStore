@@ -1,4 +1,3 @@
-// [code lama + code hasil pembaharuan = code update]
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldAlert, 
@@ -730,7 +729,7 @@ export default function Settings() {
                             <div className="flex-grow min-w-0">
                               <h4 className="text-sm font-bold text-white flex items-center gap-2">
                                 {product.name || 'Produk Baru'} 
-                                {product.is_premium && <Star size={12} className="text-yellow-400 fill-yellow-400" title="Premium" />}
+                                {product.is_premium && <Star size={12} className="text-yellow-400 fill-yellow-400" />}
                               </h4>
                               <p className="text-[11px] text-cyan-400 font-mono mt-0.5">{product.category}</p>
                               <p className="text-xs text-gray-500 truncate mt-1">{product.description || 'Tidak ada deskripsi...'}</p>
