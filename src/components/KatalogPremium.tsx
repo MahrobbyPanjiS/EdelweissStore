@@ -253,15 +253,16 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
         </button>
 
         <Swiper
+          /* INI DIA PECUTNYA: Paksa Swiper restart tiap ukuran layar ganti */
+          key={isMobile ? 'mobile' : 'desktop'} 
+          
           effect={'coverflow'}
           grabCursor={true}
           centeredSlides={true}
           slidesPerView={'auto'}
-          /* Kalau HP kasih jarak 20px, kalau PC tempelin 0px */
           spaceBetween={isMobile ? 20 : 0} 
           coverflowEffect={{
             rotate: 5,        
-            /* RAHASIANYA DI SINI: PC tetep 285 biar mewah, HP 0 biar gak sungsang */
             stretch: isMobile ? 0 : 285,       
             depth: 150,       
             modifier: 2,
