@@ -1,5 +1,6 @@
 // [code lama + code hasil pembaharuan = code update]
-import React, { useRef, useState, DragEvent } from 'react';
+import React, { useState, useRef } from 'react';
+import type { DragEvent, ChangeEvent } from 'react';
 import supabase from '../lib/supabaseClient';
 
 type Props = {
