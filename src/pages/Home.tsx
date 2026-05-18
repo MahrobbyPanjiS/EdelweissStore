@@ -1,5 +1,4 @@
-// [code lama + code hasil pembaharuan = code update]
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Copy, CheckCircle2, Server, ScrollText } from 'lucide-react';
 
@@ -22,8 +21,10 @@ import supabase from '../lib/supabaseClient';
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
-  // State untuk menampung data riil Slider
-  const [slides, setSlides] = useState<string[]>([]);
+  // State untuk menampung data riil Slider. 
+  // Diberi jaring pengaman 1 gambar default agar Hero Section tidak bolong!
+  const defaultSlide = "https://images.unsplash.com/photo-1605636715104-1b1567d1ab31?q=80&w=1000&auto=format&fit=crop";
+  const [slides, setSlides] = useState<string[]>([defaultSlide]);
   const [slidesLoading, setSlidesLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -54,7 +55,7 @@ export default function Home() {
     gsap.from('.hero-desc', { y: 30, opacity: 0, duration: 1, delay: 0.4, ease: 'power3.out' });
     gsap.from('.hero-buttons', { y: 30, opacity: 0, duration: 1, delay: 0.6, ease: 'power3.out' });
 
-    // 2. Animasi Berita (Hanya berjalan jika elemen sudah dirender)
+    // 2. Animasi Berita
     if (newsList.length > 0) {
       gsap.fromTo('.news-card', 
         { y: 50, opacity: 0 },
@@ -87,11 +88,8 @@ export default function Home() {
       }
     );
 
-    // Refresh ScrollTrigger agar perhitungan tinggi layar akurat
     setTimeout(() => ScrollTrigger.refresh(), 500);
-    setTimeout(() => ScrollTrigger.refresh(), 1500);
-
-  }, { scope: containerRef, dependencies: [slides, newsList] }); // Update dependency agar GSAP me-render ulang saat data masuk
+  }, { scope: containerRef, dependencies: [newsList] });
 
   // Mengambil data Slider
   useEffect(() => {
@@ -99,7 +97,11 @@ export default function Home() {
       try {
         const { data, error } = await supabase.from('slides').select('url').order('id', { ascending: true });
         if (error) throw error;
-        if (data && data.length > 0) setSlides(data.map(item => item.url));
+        
+        // Cek jika datanya beneran ada isinya
+        if (data && data.length > 0 && data[0].url !== "") {
+           setSlides(data.map(item => item.url));
+        }
       } catch (err) {
         console.error("Gagal mengambil slide:", err);
       } finally {
@@ -174,7 +176,8 @@ export default function Home() {
       <section className="relative py-16 md:py-24 px-4 sm:px-6 text-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-[#0f0f13]/85 z-10"></div>
-          <img src={slides.length > 0 ? slides[0] : "https://images.unsplash.com/photo-1605636715104-1b1567d1ab31?q=80&w=1000&auto=format&fit=crop"} alt="Background" className="w-full h-full object-cover opacity-30 blur-sm" />
+          {/* Ini bagian Background Gambar Heronya, mengambil gambar index pertama */}
+          <img src={slides[0]} alt="Background" className="w-full h-full object-cover opacity-30 blur-sm" />
         </div>
         <div className="relative z-20 max-w-3xl mx-auto">
           <div className="hero-badge mb-4 md:mb-6 inline-flex items-center gap-2 bg-[#1e293b]/80 border border-gray-700 rounded-full px-4 py-1.5 text-xs md:text-sm">
@@ -258,7 +261,7 @@ export default function Home() {
               
               {slidesLoading ? (
                 <div className="text-gray-400 font-bold animate-pulse">Memuat gambar dari server...</div>
-              ) : slides.length > 0 ? (
+              ) : slides.length > 0 && slides[currentSlide] ? (
                 <>
                   <img src={slides[currentSlide]} alt={`Slide ${currentSlide + 1}`} className="w-full h-full object-cover transition-opacity duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
