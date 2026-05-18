@@ -21,19 +21,8 @@ export default function Navbar() {
         .running-text {
           fill: transparent;
           stroke-width: 1.5px;
-          /* PERBAIKAN: 
-             Menyesuaikan nilai dasharray dan dashoffset menjadi 110. 
-             Nilai ini dipastikan cukup untuk mencakup seluruh panjang garis 
-             pada karakter terlebar (seperti huruf 'W'). Dengan demikian, 
-             semua huruf akan terisi secara penuh (100%) sebelum animasi 
-             memasuki fase mundur (fill out).
-          */
           stroke-dasharray: 110; 
           stroke-dashoffset: 110;
-          /* PERBAIKAN: 
-             Durasi disesuaikan kembali menjadi 2.5s untuk mengakomodasi 
-             penambahan panjang jalur (path length) agar pergerakan tetap stabil.
-          */
           animation: drawStroke 2.5s linear infinite alternate;
         }
 
@@ -77,10 +66,19 @@ export default function Navbar() {
 
             {/* --- LOGO TEKS ANIMASI DRAWING (MOBILE) --- */}
             <svg className="sm:hidden" width="125" height="40" viewBox="0 0 125 40">
+              <defs>
+                {/* SOLUSI: Bikin mesin gradient khusus buat Mobile dengan ID baru */}
+                <linearGradient id="ec-run-grad-mobile" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#0891b2" />
+                  <stop offset="50%" stopColor="#22d3ee" />
+                  <stop offset="100%" stopColor="#3b82f6" />
+                </linearGradient>
+              </defs>
               <text x="0" y="28" fontFamily="system-ui, -apple-system, sans-serif" fontSize="24" fontWeight="900" fill="rgba(34, 211, 238, 0.15)">
                 Edelweiss
               </text>
-              <text x="0" y="28" fontFamily="system-ui, -apple-system, sans-serif" fontSize="24" fontWeight="900" className="running-text" stroke="url(#ec-run-grad)">
+              {/* Panggil ID gradient yang versi mobile */}
+              <text x="0" y="28" fontFamily="system-ui, -apple-system, sans-serif" fontSize="24" fontWeight="900" className="running-text" stroke="url(#ec-run-grad-mobile)">
                 Edelweiss
               </text>
             </svg>
