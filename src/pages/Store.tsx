@@ -1,47 +1,31 @@
-// [code lama + code hasil pembaharuan = code update]
-import React, { useState, useEffect, useRef } from 'react';
-import { Crown, ShoppingCart, X, Send, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Crown, ShoppingCart, LogIn, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useNotif } from '../context/NotifContext';
+import { useTicket } from '../context/TicketProvider';
+import supabase from '../lib/supabaseClient';
 
-// =========================================================================
-// IMPORT KOMPONEN MASTER & DATA PRODUCTS
-// =========================================================================
 import KatalogPremium from '../components/KatalogPremium';
 import type { Product } from '../types/product';
 import useProducts from '../hooks/useProducts';
-import supabase from '../lib/supabaseClient';
-
-// =========================================================================
-// IMPORT GAMBAR QRIS DARI FOLDER ASSETS
-// =========================================================================
-import gambarQris from '../assets/qris.jpg';
 
 export default function Store() {
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('Semua');
-  
-  // STATE SISTEM TICKETING CHAT
-  const [activeTicket, setActiveTicket] = useState<any | null>(null);
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-  
-  const { showNotif } = useNotif();
   const [topDonators, setTopDonators] = useState<{name: string, total: number}[]>([]);
   const [categories, setCategories] = useState<string[]>(['Semua']);
+  
+  // STATE BARU: Untuk menampilkan Pop-Up Pilihan Guest / Login
+  const [guestModalProduct, setGuestModalProduct] = useState<Product | null>(null);
+  
+  const { showNotif } = useNotif();
+  const { createTicket } = useTicket();
+  const navigate = useNavigate();
 
   const { products } = useProducts();
   const safeProducts = products || [];
   
   const filteredProducts = activeCategory === 'Semua' ? safeProducts : safeProducts.filter(p => p?.category === activeCategory);
   const premiumProducts = safeProducts.filter(p => p?.is_premium === true);
-
-  // Auto-scroll chat ke paling bawah
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [chatMessages]);
 
   useEffect(() => {
     async function fetchCategories() {
@@ -60,10 +44,13 @@ export default function Store() {
         if (data && data.length > 0) {
           const donatorMap: Record<string, number> = {};
           data.forEach(inv => {
-            const buyer = inv.username || 'Unknown Hero';
+            const buyer = inv.username || 'Pahlawan Anonim';
             donatorMap[buyer] = (donatorMap[buyer] || 0) + (Number(inv.price) || 0);
           });
-          const sortedDonators = Object.keys(donatorMap).map(name => ({ name, total: donatorMap[name] })).sort((a, b) => b.total - a.total).slice(0, 3);
+          const sortedDonators = Object.keys(donatorMap)
+            .map(name => ({ name, total: donatorMap[name] }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 3);
           setTopDonators(sortedDonators);
         }
       } catch (e) { console.error("Gagal memuat Top Donatur", e); }
@@ -71,115 +58,78 @@ export default function Store() {
     fetchTopDonators();
   }, []);
 
-  // REALTIME CHAT SUBSCRIPTION
-  useEffect(() => {
-    if (!activeTicket) return;
-
-    // Load initial messages
-    const fetchMessages = async () => {
-      const { data } = await supabase.from('ticket_messages').select('*').eq('ticket_id', activeTicket.id).order('created_at', { ascending: true });
-      setChatMessages(data || []);
-    };
-    fetchMessages();
-
-    // Subscribe realtime updates
-    const channel = supabase.channel(`ticket_${activeTicket.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages', filter: `ticket_id=eq.${activeTicket.id}` }, (payload) => {
-        setChatMessages(prev => [...prev, payload.new]);
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `id=eq.${activeTicket.id}` }, (payload) => {
-        setActiveTicket(payload.new);
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [activeTicket?.id]);
-
   const handleAddToCart = (e: React.MouseEvent, productName: string) => {
     e.stopPropagation(); 
     showNotif(`${productName} ditambahkan ke Keranjang!`, 'success');
   };
 
-  // FIX UTAMA: KINI MEMANGGIL MECHANISME TICKET CHAT LANGSUNG SAAT KLIK BELI
+  /**
+   * Logika Pembelian Hybrid (Login vs Guest)
+   */
   const handleBuy = async (product: Product) => {
-    try {
-      setSelectedProduct(product);
-      const username = localStorage.getItem('mc_username') || 'Player_Anon';
-      
-      // Hitung tiket player ini untuk generate ID (Misal: Roppan#0001)
-      const { count } = await supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('username', username);
-      const ticketSequence = String((count || 0) + 1).padStart(4, '0');
-      const ticketCode = `${username}#${ticketSequence}`;
-
-      // Insert ke tabel tickets di Supabase
-      const { data: ticketData, error: ticketErr } = await supabase.from('tickets').insert({
-        ticket_code: ticketCode,
-        username: username,
-        product_id: product.id,
-        product_name: product.name,
-        price: product.price,
-        status: 'open'
-      }).select().single();
-
-      if (ticketErr) throw ticketErr;
-
-      // Insert Auto-System Message (Invoice QRIS) ke dalam room chat tiket
-      await supabase.from('ticket_messages').insert({
-        ticket_id: ticketData.id,
-        sender_type: 'system_invoice',
-        message: 'Pesanan Dibuat'
-      });
-
-      // Set active ticket untuk langsung mentrigger dan membuka modal chat box
-      setActiveTicket(ticketData);
-      showNotif(`Sesi chat pesanan ${ticketCode} berhasil dibuat.`, 'success');
-    } catch (e: any) {
-      showNotif('Gagal membuat pesanan: ' + (e.message || 'Error database'), 'error');
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Jika belum login, jangan di-redirect paksa. Tampilkan Pop-Up Opsi.
+    if (!user) {
+      setGuestModalProduct(product);
+      return;
     }
-  };
-
-  const sendChatMessage = async () => {
-    if (!chatInput.trim() || !activeTicket) return;
-    const msg = chatInput;
-    setChatInput('');
-    try {
-      await supabase.from('ticket_messages').insert({
-        ticket_id: activeTicket.id,
-        sender_type: 'player',
-        message: msg
-      });
-    } catch (e) {
-      showNotif('Gagal mengirim pesan', 'error');
-    }
-  };
-
-  const handleQuickAction = async (action: 'cancel' | 'paid') => {
-    if (!activeTicket) return;
-    try {
-      if (action === 'cancel') {
-        await supabase.from('tickets').update({ status: 'canceled' }).eq('id', activeTicket.id);
-        await supabase.from('ticket_messages').insert({ ticket_id: activeTicket.id, sender_type: 'system', message: 'Player membatalkan pesanan.' });
-      } else if (action === 'paid') {
-        await supabase.from('tickets').update({ status: 'waiting_confirmation' }).eq('id', activeTicket.id);
-        await supabase.from('ticket_messages').insert({ ticket_id: activeTicket.id, sender_type: 'player', message: 'Saya sudah melakukan pembayaran.' });
-        await supabase.from('ticket_messages').insert({ ticket_id: activeTicket.id, sender_type: 'system', message: 'Pembayaran sedang diproses dan diverifikasi oleh Admin.' });
-      }
-    } catch (e) {
-      showNotif('Gagal memproses aksi', 'error');
-    }
+    
+    // Jika sudah login, langsung buat tiket pakai akunnya.
+    await createTicket(product, false);
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-12 px-6 animate-in fade-in duration-500 overflow-hidden">
+    <div className="max-w-7xl mx-auto py-12 px-6 animate-in fade-in duration-500 overflow-hidden relative">
       
+      {/* ============================================================== */}
+      {/* MODAL POP-UP PILIHAN GUEST / LOGIN (MUNCUL JIKA BELUM LOGIN)   */}
+      {/* ============================================================== */}
+      {guestModalProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#101014] border border-[#3d3d3d] rounded-3xl w-full max-w-md p-8 shadow-2xl relative">
+            
+            <div className="w-16 h-16 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <ShoppingCart size={32} />
+            </div>
+
+            <h3 className="text-2xl font-black text-center text-white mb-2">Pilih Metode Beli</h3>
+            <p className="text-sm text-center text-gray-400 mb-8 leading-relaxed">
+              Sangat disarankan untuk <strong>Login</strong> agar transaksi lo aman, gampang dilacak Admin, dan tersimpan di riwayat. Tetap mau beli instan tanpa login?
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => navigate('/login')} 
+                className="w-full flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black font-black py-4 rounded-xl transition-all shadow-[0_4px_15px_rgba(34,211,238,0.3)] active:scale-95"
+              >
+                <LogIn size={18} /> Login / Daftar Dulu
+              </button>
+              
+              <button 
+                onClick={() => { 
+                  createTicket(guestModalProduct, true); // Eksekusi dengan mode Guest = true
+                  setGuestModalProduct(null); 
+                }} 
+                className="w-full flex items-center justify-center gap-2 bg-[#1e293b] hover:bg-gray-700 text-white font-bold py-4 rounded-xl border border-gray-700 transition-all active:scale-95"
+              >
+                <User size={18} /> Lanjut Sebagai Guest
+              </button>
+              
+              <button onClick={() => setGuestModalProduct(null)} className="mt-3 text-sm font-bold text-gray-500 hover:text-gray-300 transition-colors">
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ============================================================== */}
       {/* BAGIAN SLIDER KATALOG PREMIUM ATAS                             */}
       {/* ============================================================== */}
       <div className="relative w-full min-h-[600px] bg-gradient-to-b from-[#14151c] to-[#0f0f13] border border-gray-800 rounded-3xl mb-12 flex flex-col items-center justify-center p-8 md:p-12 overflow-hidden shadow-2xl">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none"></div>
-        
-        {/* Menyisipkan data produk premium ke dalam komponen slider KatalogPremium */}
-        <KatalogPremium premiumProducts={premiumProducts} />
+        <KatalogPremium premiumProducts={premiumProducts} onBuyProduct={handleBuy} />
       </div>
 
       {/* ============================================================== */}
@@ -278,109 +228,6 @@ export default function Store() {
         </div>
 
       </div>
-
-      {/* ============================================================== */}
-      {/* MODAL SESI CHAT TICKETING REALTIME                             */}
-      {/* ============================================================== */}
-      {activeTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in transition-all">
-          <div className="bg-[#101014] border border-[#3d3d3d] rounded-2xl w-full max-w-lg h-[85vh] flex flex-col overflow-hidden shadow-[0_0_80px_rgba(34,211,238,0.15)] relative">
-            
-            {/* Header Chat */}
-            <div className="p-4 border-b border-[#3d3d3d]/50 bg-[#1a1a24] flex justify-between items-center z-10 shadow-md">
-              <div>
-                <h3 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
-                  PESANAN <span className="text-cyan-400">{activeTicket.ticket_code}</span>
-                </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  {activeTicket.status === 'open' && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 flex items-center gap-1"><Clock size={10}/> Menunggu Pembayaran</span>}
-                  {activeTicket.status === 'waiting_confirmation' && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1"><Clock size={10}/> Sedang Diperiksa Admin</span>}
-                  {activeTicket.status === 'success' && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20 flex items-center gap-1"><CheckCircle2 size={10}/> Lunas & Selesai</span>}
-                  {activeTicket.status === 'canceled' && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1"><AlertCircle size={10}/> Dibatalkan</span>}
-                </div>
-              </div>
-              <button onClick={() => { setActiveTicket(null); setSelectedProduct(null); }} className="text-gray-400 hover:text-white p-1.5 bg-[#0f0f13] rounded-full border border-gray-700 transition-colors"><X size={20} /></button>
-            </div>
-            
-            {/* Area Chat Messages */}
-            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-[#0d0d0f] to-[#121215]">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col ${msg.sender_type === 'player' ? 'items-end' : 'items-start'}`}>
-                  
-                  {/* Tipe Pesan: SYSTEM INVOICE (PRO SHOP STYLE + FIX SIZE QRIS GEDE 320px) */}
-                  {msg.sender_type === 'system_invoice' ? (
-                    <div className="w-full bg-[#1a1a24] border border-[#3d3d3d] rounded-xl p-5 mb-2 shadow-lg animate-in fade-in zoom-in-95 duration-200">
-                      <div className="flex justify-between items-start border-b border-gray-700 pb-3 mb-3">
-                        <div>
-                          <p className="text-[#22d3ee] font-black text-xs tracking-widest mb-1 uppercase">EDELWEISS OFFICIAL INVOICE</p>
-                          <h4 className="text-lg font-extrabold text-white uppercase">{activeTicket.product_name}</h4>
-                          <p className="text-[11px] text-gray-500 mt-1">Status Tagihan: <span className="text-yellow-500 font-bold">BELUM LUNAS</span></p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-400">Total Pembayaran:</p>
-                          <p className="text-xl font-black text-cyan-400">Rp {Number(activeTicket.price).toLocaleString('id-ID')}</p>
-                        </div>
-                      </div>
-                      
-                      {/* TAMPILAN QRIS YANG SUDAH DINAIKKAN MENJADI W-80 (320px) AGAR SANGAT MUDAH DI-SCAN */}
-                      <div className="flex flex-col items-center bg-white p-4 rounded-xl shadow-inner border border-gray-200">
-                        <p className="text-black font-black text-xs mb-3 tracking-widest bg-gray-100 px-3 py-1 rounded-full border border-gray-300">SCAN QRIS MERCHANT</p>
-                        <img src={gambarQris} alt="QRIS Edelweiss Craft" className="w-80 h-80 object-contain mb-2 border border-gray-300 rounded-lg p-1 bg-white shadow-sm" />
-                        <p className="text-gray-500 text-[10px] text-center max-w-[240px]">Pastiin nominal transfer sesuai dengan total tagihan di atas.</p>
-                      </div>
-                    </div>
-                  ) : 
-                  /* Tipe Pesan: SYSTEM CONFIRMATION / ANNOUNCEMENT */
-                  msg.sender_type === 'system' ? (
-                    <div className="w-full flex justify-center my-2 animate-in fade-in duration-300">
-                      <div className="bg-gray-800/60 text-gray-300 text-xs px-4 py-2 rounded-xl border border-gray-700 max-w-[90%] text-center leading-relaxed">
-                        {msg.message}
-                      </div>
-                    </div>
-                  ) : 
-                  /* Tipe Pesan: INTERAKSI PLAYER / ADMIN */
-                  (
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-md animate-in slide-in-from-bottom-2 duration-200 ${msg.sender_type === 'player' ? 'bg-cyan-600 text-white rounded-br-none' : 'bg-[#1e293b] text-gray-200 border border-gray-700 rounded-bl-none'}`}>
-                      <p className="text-[10px] font-bold mb-1 opacity-60 uppercase tracking-wider">{msg.sender_type === 'player' ? 'Anda' : 'Staff Admin'}</p>
-                      <p className="text-sm break-words whitespace-pre-wrap leading-relaxed">{msg.message}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Area Input & Tombol Quick Actions */}
-            <div className="p-4 bg-[#1a1a24] border-t border-[#3d3d3d]/50">
-              {activeTicket.status === 'open' && (
-                <div className="flex gap-2 mb-3">
-                  <button onClick={() => handleQuickAction('cancel')} className="flex-1 py-2.5 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-bold hover:bg-red-500 hover:text-white transition-all active:scale-95">Batalkan Pesanan</button>
-                  <button onClick={() => handleQuickAction('paid')} className="flex-1 py-2.5 rounded-xl bg-cyan-500 text-black text-xs font-bold hover:bg-cyan-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.4)]">Saya Sudah Membayar</button>
-                </div>
-              )}
-              
-              <div className="flex gap-2 items-center bg-[#0f0f13] border border-gray-700 rounded-xl p-1.5 focus-within:border-cyan-500 transition-colors">
-                <input 
-                  type="text" 
-                  value={chatInput} 
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
-                  placeholder={activeTicket.status === 'canceled' || activeTicket.status === 'success' ? "Sesi chat telah ditutup..." : "Ketik pesan untuk Admin di sini..."}
-                  disabled={activeTicket.status === 'canceled' || activeTicket.status === 'success'}
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-white px-3 disabled:opacity-50 focus:outline-none"
-                />
-                <button 
-                  onClick={sendChatMessage}
-                  disabled={!chatInput.trim() || activeTicket.status === 'canceled' || activeTicket.status === 'success'}
-                  className="p-2.5 bg-cyan-500 text-black rounded-lg hover:bg-cyan-400 disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }

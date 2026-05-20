@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Home, Book, LifeBuoy, Menu, X, User, ShieldAlert } from 'lucide-react';
+import { ShoppingCart, Home, Book, LifeBuoy, Menu, X, User, ShieldAlert, MessageSquare } from 'lucide-react';
+import { useTicket } from '../context/TicketProvider';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { activeTicket, openTicketPanel, isPanelOpen, closeTicketPanel } = useTicket();
 
   const navLinks = [
     { name: 'Beranda', path: '/', icon: <Home size={18} /> },
@@ -12,6 +14,9 @@ export default function Navbar() {
     { name: 'Wiki / Panduan', path: '/wiki', icon: <Book size={18} /> },
     { name: 'Bantuan', path: '/help', icon: <LifeBuoy size={18} /> },
   ];
+
+  // Logika untuk ngecek apakah ada tiket yang statusnya masih jalan (belum selesai/batal)
+  const hasActiveTicket = activeTicket && activeTicket.status !== 'success' && activeTicket.status !== 'canceled';
 
   return (
     <nav className="sticky top-0 z-40 w-full bg-[#14141a]/90 backdrop-blur-md border-b border-gray-800">
@@ -27,12 +32,8 @@ export default function Navbar() {
         }
 
         @keyframes drawStroke {
-          0% { 
-            stroke-dashoffset: 110; 
-          }
-          100% {
-            stroke-dashoffset: 0; 
-          }
+          0% { stroke-dashoffset: 110; }
+          100% { stroke-dashoffset: 0; }
         }
 
         .nav-text-container {
@@ -67,7 +68,6 @@ export default function Navbar() {
             {/* --- LOGO TEKS ANIMASI DRAWING (MOBILE) --- */}
             <svg className="sm:hidden" width="125" height="40" viewBox="0 0 125 40">
               <defs>
-                {/* SOLUSI: Bikin mesin gradient khusus buat Mobile dengan ID baru */}
                 <linearGradient id="ec-run-grad-mobile" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#0891b2" />
                   <stop offset="50%" stopColor="#22d3ee" />
@@ -77,7 +77,6 @@ export default function Navbar() {
               <text x="0" y="28" fontFamily="system-ui, -apple-system, sans-serif" fontSize="24" fontWeight="900" fill="rgba(34, 211, 238, 0.15)">
                 Edelweiss
               </text>
-              {/* Panggil ID gradient yang versi mobile */}
               <text x="0" y="28" fontFamily="system-ui, -apple-system, sans-serif" fontSize="24" fontWeight="900" className="running-text" stroke="url(#ec-run-grad-mobile)">
                 Edelweiss
               </text>
@@ -97,6 +96,20 @@ export default function Navbar() {
           {/* User Actions Desktop */}
           <div className="hidden md:flex items-center gap-3 border-l border-gray-800 ml-4 pl-4">
             
+            {/* Tombol Akses Chat Tiket - Hanya muncul kalau ada transaksi aktif */}
+            {hasActiveTicket && (
+              <button 
+                onClick={isPanelOpen ? closeTicketPanel : openTicketPanel} 
+                className={`relative p-2 rounded-full transition-colors ${isPanelOpen ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}
+                title="Tiket Pesanan Aktif"
+              >
+                <MessageSquare size={20} />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md border-2 border-[#14141a]">
+                  1
+                </span>
+              </button>
+            )}
+
             <Link to="/settings" className={`p-2 rounded-full transition-colors ${location.pathname === '/settings' ? 'text-red-400 bg-red-500/10' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`} title="Admin Dashboard">
               <ShieldAlert size={20} />
             </Link>
@@ -107,7 +120,21 @@ export default function Navbar() {
           </div>
 
           {/* Hamburger Menu Mobile */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            
+            {/* Tombol Akses Chat Tiket Mobile - Hanya muncul kalau ada transaksi aktif */}
+            {hasActiveTicket && (
+              <button 
+                onClick={isPanelOpen ? closeTicketPanel : openTicketPanel} 
+                className={`relative p-2 transition-colors ${isPanelOpen ? 'text-cyan-400' : 'text-gray-400'}`}
+              >
+                <MessageSquare size={20} />
+                <span className="absolute -top-0 -right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md border-2 border-[#14141a]">
+                  1
+                </span>
+              </button>
+            )}
+
             <button onClick={() => setIsOpen(!isOpen)} className="text-gray-400 p-2">{isOpen ? <X size={24} /> : <Menu size={24} />}</button>
           </div>
         </div>

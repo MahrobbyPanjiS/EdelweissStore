@@ -1,367 +1,265 @@
-// [code lama + code hasil pembaharuan = code update]
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Wallet, Calendar, CreditCard, ShoppingBag, LifeBuoy, Bell, Lock, Save, ArrowRight, CheckCircle2, Mail, Image as ImageIcon, History, XCircle, Clock, Crown } from 'lucide-react';
-import { SkinViewer, IdleAnimation, WalkingAnimation, RunningAnimation, FlyingAnimation } from 'skinview3d';
+import { Link } from 'react-router-dom';
+import { Wallet, Calendar, History, Crown, Loader2, ImageIcon, Bell, User, LogIn, UserPlus, MapPin } from 'lucide-react';
+import { SkinViewer, IdleAnimation, WalkingAnimation } from 'skinview3d';
+import supabase from '../lib/supabaseClient';
+import { useNotif } from '../context/NotifContext';
+
+interface UserData {
+  username: string;
+  email: string;
+  role: string;
+  kota: string;
+  skin_url: string;
+  createdAt: string;
+}
+
+interface TicketHistory {
+  id: string;
+  ticket_code: string;
+  product_name: string;
+  price: number;
+  status: 'open' | 'waiting_confirmation' | 'success' | 'canceled';
+  created_at: string;
+}
 
 export default function Profile() {
-  // --- LOGIKA PERSISTENCE (LOKAL) ---
-  // Menyimpan data tampilan dan URL skin menggunakan LocalStorage agar tidak hilang saat di-refresh
-  const savedViewMode = localStorage.getItem('viewMode') as 'login' | 'register' | 'view' || 'login';
-  const savedSkinUrl = localStorage.getItem('userSkin') || "https://minotar.net/skin/Steve";
-
-  const [viewMode, setViewMode] = useState<'login' | 'register' | 'view'>(savedViewMode);
   const [activeTab, setActiveTab] = useState<'overview' | 'settings'>('overview');
+  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+  const [ticketHistory, setTicketHistory] = useState<TicketHistory[]>([]);
+  const [loading, setLoading] = useState(true);
   const [notif, setNotif] = useState(true);
 
-  // State khusus untuk Skin dengan data awal ditarik dari LocalStorage
-  const [skinUrl, setSkinUrl] = useState(savedSkinUrl);
+  const [skinUrl, setSkinUrl] = useState("https://minotar.net/skin/Steve");
   const [inputPremiumName, setInputPremiumName] = useState("");
-  const [inputCustomUrl, setInputCustomUrl] = useState("");
-  
-  // State untuk mengontrol animasi 3D karakter (Ditambah opsi 'spin')
-  const [skinAnimation, setSkinAnimation] = useState<'idle' | 'walk' | 'run' | 'fly' | 'spin'>('idle');
+  const skinContainerRef = useRef<HTMLDivElement>(null);
+  const { showNotif } = useNotif();
 
-  // Referensi untuk merender kanvas 3D
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const viewerRef = useRef<SkinViewer | null>(null);
-
-  // Simulasi data pemain beserta riwayat transaksi sesuai pembaruan metrik
-  const userData = {
-    username: "Mahrobby",
-    role: "Verified Member",
-    roleColor: "text-emerald-400",
-    roleBg: "bg-emerald-400/10",
-    balance: 1500000,
-    joinDate: "12 Januari 2026",
-    email: "mahrobby@example.com",
-    stats: [
-      { label: "Total TopUp", value: "Rp 1.500k", icon: <CreditCard size={18} /> },
-      { label: "Rank", value: "Celestial", icon: <Crown size={18} /> },
-      { label: "Item di beli", value: "2", icon: <ShoppingBag size={18} /> },
-      { label: "Ticket Bantuan", value: "0", icon: <LifeBuoy size={18} /> },
-    ],
-    transactions: [
-      { id: "INV-EC-001", date: "15 Mei 2026", item: "Top-Up Saldo Web", amount: 1500000, status: "success" },
-      { id: "INV-EC-002", date: "14 Mei 2026", item: "Mytic Rank", amount: 75000, status: "success" },
-      { id: "INV-EC-003", date: "10 Mei 2026", item: "Paket Diamond", amount: 25000, status: "pending" },
-      { id: "INV-EC-004", date: "05 Mei 2026", item: "Zombie Spawner", amount: 35000, status: "failed" },
-    ]
-  };
-
-  // Efek samping untuk menyimpan status mode login secara dinamis
   useEffect(() => {
-    localStorage.setItem('viewMode', viewMode);
-  }, [viewMode]);
-
-  // Efek samping untuk inisialisasi dan memuat SkinViewer 3D
-  useEffect(() => {
-    if (viewMode === 'view' && canvasRef.current) {
-      if (!viewerRef.current) {
-        // Pembuatan instansi penampil SkinViewer
-        viewerRef.current = new SkinViewer({
-          canvas: canvasRef.current,
-          width: 250,
-          height: 350,
-          skin: skinUrl
-        });
-        viewerRef.current.controls.enableRotate = true;
-        viewerRef.current.controls.enableZoom = false; 
-        viewerRef.current.autoRotate = true;
-        viewerRef.current.autoRotateSpeed = 0.5;
-        
-        // Memuat animasi default saat pertama kali dimuat
-        viewerRef.current.animation = new IdleAnimation();
-      } else {
-        // Memperbarui tekstur 3D secara asinkron jika tautan diubah oleh pengguna
-        viewerRef.current.loadSkin(skinUrl).catch(() => {
-          viewerRef.current?.loadSkin("https://minotar.net/skin/Steve");
-        });
-      }
-    }
-  }, [viewMode, skinUrl]);
-
-  // Efek samping khusus untuk mendengarkan perubahan pada menu pilihan animasi
-  useEffect(() => {
-    if (viewerRef.current) {
+    const fetchUserDataAndHistory = async () => {
       try {
-        // Kembalikan kecepatan rotasi ke standar setiap kali animasi diganti
-        viewerRef.current.autoRotateSpeed = 0.5;
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
 
-        // Menerapkan instance animasi baru secara langsung sesuai perubahan state
-        if (skinAnimation === 'walk') {
-          viewerRef.current.animation = new WalkingAnimation();
-        } else if (skinAnimation === 'run') {
-          viewerRef.current.animation = new RunningAnimation();
-        } else if (skinAnimation === 'fly') {
-          viewerRef.current.animation = new FlyingAnimation();
-        } else if (skinAnimation === 'spin') {
-          // Akal-akalan untuk efek spin: Gunakan animasi idle tapi rotasi dipercepat drastis
-          viewerRef.current.animation = new IdleAnimation();
-          viewerRef.current.autoRotateSpeed = 5.0; 
-        } else {
-          viewerRef.current.animation = new IdleAnimation();
+        if (user) {
+          const meta = user.user_metadata || {};
+          
+          setCurrentUser({
+            username: meta.username || 'Player',
+            email: user.email || '',
+            role: meta.role || 'player',
+            kota: meta.kota || 'Tidak diatur',
+            skin_url: meta.skin_url || 'https://minotar.net/skin/Steve',
+            createdAt: new Date(user.created_at).toLocaleDateString('id-ID', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          });
+
+          // Set URL skin sesuai data yang didaftarin
+          if (meta.skin_url) setSkinUrl(meta.skin_url);
+
+          const { data: tickets, error: ticketErr } = await supabase
+            .from('tickets')
+            .select('id, ticket_code, product_name, price, status, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (!ticketErr && tickets) {
+            setTicketHistory(tickets as TicketHistory[]);
+          }
         }
-      } catch (error) {
-        // Penanganan error agar halaman tidak memutih jika terjadi kegagalan modul animasi
-        console.error("Terdapat kesalahan saat memuat modul animasi:", error);
+      } catch (err) {
+        console.error('Gagal memuat data profil:', err);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [skinAnimation]);
+    };
 
-  // Fungsi untuk menerapkan Skin menggunakan API premium
-  const handleSkinPremium = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputPremiumName.trim() !== "") {
-      const newUrl = `https://minotar.net/skin/${inputPremiumName}`;
-      setSkinUrl(newUrl);
-      localStorage.setItem('userSkin', newUrl);
-      alert(`Skin ${inputPremiumName} berhasil dipasang permanen di peramban ini!`);
-      setInputPremiumName("");
-    }
+    fetchUserDataAndHistory();
+  }, []);
+
+  useEffect(() => {
+    if (!skinContainerRef.current || loading || !currentUser) return;
+
+    skinContainerRef.current.innerHTML = '';
+
+    const viewer = new SkinViewer({
+      canvas: document.createElement('canvas'),
+      width: 220,
+      height: 320,
+      skin: skinUrl
+    });
+
+    skinContainerRef.current.appendChild(viewer.canvas);
+    viewer.animations.add(IdleAnimation);
+    viewer.animations.add(WalkingAnimation);
+    viewer.autoRotate = true;
+    viewer.autoRotateSpeed = 0.5;
+
+    return () => {
+      viewer.dispose();
+    };
+  }, [skinUrl, loading, currentUser]);
+
+  const handleApplyPremiumSkin = async () => {
+    if (!inputPremiumName.trim()) return showNotif('Masukkan nama premium terlebih dahulu!', 'error');
+    
+    let newUrl = inputPremiumName.startsWith('http') ? inputPremiumName.trim() : `https://minotar.net/skin/${inputPremiumName.trim()}`;
+    
+    // Update skin lokal dan simpan ke Supabase agar permanen
+    setSkinUrl(newUrl);
+    await supabase.auth.updateUser({ data: { skin_url: newUrl } });
+    
+    showNotif('Skin premium berhasil diupdate!', 'success');
+    setInputPremiumName('');
   };
 
-  // Fungsi untuk menerapkan Skin menggunakan URL kustom
-  const handleSkinUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputCustomUrl.trim() !== "") {
-      setSkinUrl(inputCustomUrl);
-      localStorage.setItem('userSkin', inputCustomUrl);
-      alert("Skin URL kustom berhasil dipasang permanen!");
-      setInputCustomUrl("");
-    }
-  };
+  const totalSpent = ticketHistory
+    .filter(t => t.status === 'success')
+    .reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
 
-  // Fungsi untuk keluar dari sesi akun
-  const handleLogout = () => {
-    localStorage.removeItem('viewMode');
-    setViewMode('login');
-    window.location.reload(); 
-  };
-
-  // --- TAMPILAN 1: MASUK AKUN (LOGIN) ---
-  if (viewMode === 'login') {
+  if (loading) {
     return (
-      <div className="max-w-md mx-auto py-24 px-6 animate-in fade-in duration-500">
-        <div className="bg-[#1e293b]/30 border border-gray-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Masuk Akun</h1>
-            <p className="text-gray-400 text-sm">Portal Web Edelweiss Craft</p>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="animate-spin text-cyan-400" size={40} />
+        <p className="text-sm text-gray-400">Memuat profil Edelweiss lo...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="max-w-xl mx-auto py-20 px-6 animate-in fade-in duration-500">
+        <div className="bg-[#1e293b]/30 border border-gray-800 rounded-3xl p-8 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent"></div>
+          <div className="w-16 h-16 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <User size={32} />
           </div>
-          <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); setViewMode('view'); }}>
-            <div className="relative">
-              <User className="absolute left-4 top-3.5 text-gray-500" size={18} />
-              <input type="text" placeholder="Username / Email" className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-cyan-500 outline-none" required />
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-4 top-3.5 text-gray-500" size={18} />
-              <input type="password" placeholder="Password" className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-cyan-500 outline-none" required />
-            </div>
-            <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95">
-              Masuk Sekarang <ArrowRight size={18} />
-            </button>
-          </form>
-          <p className="mt-8 text-center text-sm text-gray-400">
-            Belum punya akun? <button onClick={() => setViewMode('register')} className="text-cyan-500 font-bold">Daftar di sini</button>
+          <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">Lo Belum Masuk Sesi</h2>
+          <p className="text-gray-400 text-sm max-w-sm mx-auto mb-8 leading-relaxed">
+            Silakan masuk atau daftar akun web dulu buat ngelihat data profil, ganti skin 3D, dan ngelacak riwayat pembelian lo.
           </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link to="/login" className="w-full sm:w-auto min-w-[160px] flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black font-black px-6 py-3.5 rounded-xl transition-all shadow-[0_4px_15px_rgba(34,211,238,0.3)] text-sm">
+              <LogIn size={18} /> Masuk Akun
+            </Link>
+            <Link to="/register" className="w-full sm:w-auto min-w-[160px] flex items-center justify-center gap-2 bg-[#1e293b] hover:bg-gray-700 text-white font-bold px-6 py-3.5 rounded-xl border border-gray-700 transition-all text-sm">
+              <UserPlus size={18} /> Daftar Baru
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
-  // --- TAMPILAN 2: DAFTAR AKUN (REGISTER) ---
-  if (viewMode === 'register') {
-    return (
-      <div className="max-w-md mx-auto py-16 px-6 animate-in fade-in duration-500">
-        <div className="bg-[#1e293b]/30 border border-gray-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Buat Akun Baru</h1>
-            <p className="text-gray-400 text-sm">Daftarkan akun web lo di sini</p>
-          </div>
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); setViewMode('view'); }}>
-            <div className="relative">
-              <User className="absolute left-4 top-3.5 text-gray-500" size={18} />
-              <input type="text" placeholder="Username" className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-emerald-500 outline-none" required />
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-4 top-3.5 text-gray-500" size={18} />
-              <input type="password" placeholder="Password Baru" className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-emerald-500 outline-none" required />
-            </div>
-            <div className="relative">
-              <CheckCircle2 className="absolute left-4 top-3.5 text-gray-500" size={18} />
-              <input type="password" placeholder="Konfirmasi Password" className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-emerald-500 outline-none" required />
-            </div>
-            <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 mt-4">
-              Daftar & Masuk <ArrowRight size={18} />
-            </button>
-          </form>
-          <p className="mt-8 text-center text-sm text-gray-400">
-            Sudah punya akun? <button onClick={() => setViewMode('login')} className="text-emerald-500 font-bold">Masuk di sini</button>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // --- TAMPILAN 3: DASBOR PROFIL (TELAH MASUK) ---
   return (
-    <div className="max-w-5xl mx-auto py-12 px-6 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="max-w-7xl mx-auto py-12 px-6 animate-in fade-in duration-500">
+      <div className="flex flex-col lg:flex-row gap-8">
         
-        {/* Kolom Kiri: Avatar Karakter & Informasi Dasar */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-[#1e293b]/30 border border-gray-800 rounded-3xl p-6 flex flex-col items-center text-center">
-            <div className="relative flex justify-center w-full min-h-[300px] mb-2">
-              <div className="absolute inset-0 bg-cyan-500 blur-3xl opacity-20 rounded-full"></div>
-              {/* Kanvas untuk merender tampilan 3D dari skin pemain */}
-              <canvas ref={canvasRef} className="relative z-10 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)] cursor-grab active:cursor-grabbing"></canvas>
-            </div>
-            
-            {/* Opsi Pemilihan Animasi Karakter */}
-            <div className="mb-6 w-full px-4">
-              <select 
-                value={skinAnimation}
-                onChange={(e) => setSkinAnimation(e.target.value as any)}
-                className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-cyan-500 cursor-pointer text-center"
-              >
-                <option value="idle">Animasi: Berdiri (Idle)</option>
-                <option value="walk">Animasi: Berjalan (Walk)</option>
-                <option value="run">Animasi: Berlari (Run)</option>
-                <option value="fly">Animasi: Terbang (Elytra Pose)</option>
-                <option value="spin">Animasi: Berputar (Spin)</option>
-              </select>
-            </div>
-
-            <h1 className="text-2xl font-bold mb-1">{userData.username}</h1>
-            <div className={`px-3 py-1 rounded-full text-xs font-bold border border-current ${userData.roleColor} ${userData.roleBg}`}>{userData.role}</div>
-          </div>
+        {/* PANEL KIRI: PREVIEW SKIN & IDENTITAS */}
+        <div className="lg:w-1/3 bg-[#1e293b]/20 border border-gray-800 rounded-3xl p-6 flex flex-col items-center justify-center relative overflow-hidden min-h-[450px]">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent"></div>
           
-          {/* Detail Informasi Finansial & Akun */}
-          <div className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6 space-y-4 text-sm">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
-              <span className="text-gray-400 flex items-center gap-2"><Wallet size={16}/> Saldo Web</span>
-              <span className="text-green-400 font-bold text-base">Rp {userData.balance.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400 flex items-center gap-2"><Mail size={16}/> Email</span>
-              <span className="text-white truncate max-w-[150px]">{userData.email}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400 flex items-center gap-2"><Calendar size={16}/> Bergabung</span>
-              <span className="text-white">{userData.joinDate}</span>
-            </div>
-            <button onClick={handleLogout} className="w-full mt-4 py-2.5 text-sm font-bold text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-colors">
-              Logout / Keluar Akun
-            </button>
+          <div className="legendary-indicator mb-4 z-10 flex items-center gap-1.5 capitalize">
+            <Crown size={12} className="text-yellow-400 fill-yellow-400" /> {currentUser.role} Account
+          </div>
+
+          <div ref={skinContainerRef} className="w-[220px] h-[320px] mb-4 bg-[#0f0f13]/60 border border-gray-800 rounded-2xl flex items-center justify-center overflow-hidden shadow-inner relative">
+            <div className="absolute inset-0 bg-radial-gradient from-cyan-500/5 to-transparent pointer-events-none"></div>
+          </div>
+
+          <h2 className="text-2xl font-black text-white tracking-wide uppercase">{currentUser.username}</h2>
+          
+          {/* Menampilkan Asal Kota di bawah nama */}
+          <div className="flex items-center gap-1.5 text-gray-400 text-sm mt-2 font-medium">
+            <MapPin size={14} className="text-cyan-400" /> {currentUser.kota}
           </div>
         </div>
 
-        {/* Kolom Kanan: Navigasi Konten Detail */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Tab Navigasi Antarmuka */}
-          <div className="flex gap-2 p-1 bg-[#1e293b]/30 border border-gray-800 rounded-xl w-fit">
-            <button onClick={() => setActiveTab('overview')} className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'}`}>Statistik & Riwayat</button>
-            <button onClick={() => setActiveTab('settings')} className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'settings' ? 'bg-cyan-500 text-black' : 'text-gray-400 hover:text-white'}`}>Pengaturan Akun</button>
+        {/* PANEL KANAN: KONTEN */}
+        <div className="flex-grow lg:w-2/3 space-y-6">
+          <div className="flex gap-2 border-b border-gray-800 pb-3">
+            <button onClick={() => setActiveTab('overview')} className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all ${activeTab === 'overview' ? 'bg-cyan-500 text-black border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.2)]' : 'bg-transparent text-gray-400 border-transparent hover:text-white'}`}>Ringkasan Akun</button>
+            <button onClick={() => setActiveTab('settings')} className={`px-5 py-2.5 rounded-xl text-xs font-bold border transition-all ${activeTab === 'settings' ? 'bg-cyan-500 text-black border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.2)]' : 'bg-transparent text-gray-400 border-transparent hover:text-white'}`}>Pengaturan Profil</button>
           </div>
 
-          {/* Tab Konten 1: Ringkasan Statistik & Riwayat Pembelian */}
-          {activeTab === 'overview' ? (
-            <div className="space-y-6 animate-in slide-in-from-bottom-2">
-              
-              {/* Seksi Metrik Utama (4 Kotak Informatif) */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {userData.stats.map((s, i) => (
-                  <div key={i} className="bg-[#1e293b]/20 border border-gray-800 rounded-2xl p-5 flex flex-col items-center justify-center gap-2">
-                    <div className="text-cyan-400">{s.icon}</div>
-                    <div className="text-xl font-bold">{s.value}</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest text-center leading-tight">{s.label}</div>
+          {activeTab === 'overview' && (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-[#0f0f13] border border-gray-800 p-5 rounded-2xl flex items-center justify-between transition-colors">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Pengeluaran Web</p>
+                    <h3 className="text-xl font-black text-green-400">Rp {totalSpent.toLocaleString('id-ID')}</h3>
                   </div>
-                ))}
+                  <div className="p-3 bg-green-500/10 rounded-xl text-green-400"><Wallet size={20}/></div>
+                </div>
+                <div className="bg-[#0f0f13] border border-gray-800 p-5 rounded-2xl flex items-center justify-between transition-colors">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Bergabung Sejak</p>
+                    <h3 className="text-sm font-black text-white">{currentUser.createdAt}</h3>
+                  </div>
+                  <div className="p-3 bg-cyan-500/10 rounded-xl text-cyan-400"><Calendar size={20}/></div>
+                </div>
               </div>
 
-              {/* Seksi Riwayat Daftar Transaksi */}
-              <div className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl overflow-hidden">
-                <div className="p-5 border-b border-gray-800 font-bold text-white flex items-center gap-2">
-                  <History className="text-cyan-400" size={18}/> Riwayat Transaksi Terakhir
-                </div>
-                
-                <div className="divide-y divide-gray-800/50">
-                  {userData.transactions.map((trx, i) => (
-                    <div key={i} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/5 transition-colors">
-                      <div className="flex items-start gap-4">
-                        {/* Ikon Representasi Status Transaksi */}
-                        <div className="mt-0.5">
-                          {trx.status === 'success' && <CheckCircle2 className="text-green-500" size={20} />}
-                          {trx.status === 'pending' && <Clock className="text-yellow-500" size={20} />}
-                          {trx.status === 'failed' && <XCircle className="text-red-500" size={20} />}
-                        </div>
+              <div className="bg-[#1e293b]/10 border border-gray-800 rounded-2xl p-6">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><History size={18} className="text-cyan-400"/> Riwayat Transaksi Nyata</h3>
+                <div className="space-y-3">
+                  {ticketHistory.length > 0 ? (
+                    ticketHistory.map((ticket) => (
+                      <div key={ticket.id} className="bg-[#0f0f13] p-4 rounded-xl border border-gray-800 flex items-center justify-between gap-4">
                         <div>
-                          <div className="font-bold text-white mb-1">{trx.item}</div>
-                          <div className="text-xs text-gray-400 font-mono">{trx.id} • {trx.date}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-bold text-white">{ticket.ticket_code}</span>
+                            <span className="text-gray-500 text-xs">•</span>
+                            <span className="text-xs text-gray-400 uppercase font-semibold">{ticket.product_name}</span>
+                          </div>
+                          <p className="text-[10px] text-gray-600 mt-1">{new Date(ticket.created_at).toLocaleString('id-ID')}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-white mb-1">Rp {Number(ticket.price).toLocaleString('id-ID')}</p>
+                          {ticket.status === 'success' && <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-green-500/10 text-green-400 border border-green-500/20">Selesai</span>}
+                          {ticket.status === 'open' && <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Menunggu Bayar</span>}
+                          {ticket.status === 'waiting_confirmation' && <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">Dicek Admin</span>}
+                          {ticket.status === 'canceled' && <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">Batal</span>}
                         </div>
                       </div>
-                      
-                      {/* Informasi Harga dan Lencana Penanda Status */}
-                      <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto">
-                        <div className="font-bold text-white mb-1">Rp {trx.amount.toLocaleString()}</div>
-                        <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border
-                          ${trx.status === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
-                            trx.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 
-                            'bg-red-500/10 text-red-400 border-red-500/20'}`}
-                        >
-                          {trx.status === 'success' ? 'Berhasil' : trx.status === 'pending' ? 'Menunggu Pembayaran' : 'Gagal / Dibatalkan'}
-                        </div>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 bg-[#0f0f13]/40 rounded-xl border border-dashed border-gray-800 text-xs">
+                      Belum ada riwayat transaksi di akun ini.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
-
             </div>
-          ) : (
-            
-            // Tab Konten 2: Panel Pengaturan Keamanan & Kustomisasi
-            <div className="space-y-6 animate-in slide-in-from-bottom-2">
-              <section className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6">
-                <h3 className="text-lg font-bold mb-6 flex items-center gap-2"><ImageIcon size={18} className="text-cyan-400"/> Penampilan (Ganti Skin)</h3>
-                <div className="space-y-6">
-                  <form onSubmit={handleSkinPremium}>
-                    <label className="text-xs text-gray-500 block mb-2 uppercase font-bold">Nama Akun Premium</label>
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="Contoh: Dream" value={inputPremiumName} onChange={(e) => setInputPremiumName(e.target.value)} className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-cyan-500" />
-                      <button type="submit" className="bg-cyan-500 text-black px-6 rounded-xl text-sm font-bold">Simpan</button>
-                    </div>
-                  </form>
-                  <form onSubmit={handleSkinUrl}>
-                    <label className="text-xs text-gray-500 block mb-2 uppercase font-bold">URL Custom (.png)</label>
-                    <div className="flex gap-2">
-                      <input type="url" placeholder="https://..." value={inputCustomUrl} onChange={(e) => setInputCustomUrl(e.target.value)} className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-cyan-500" />
-                      <button type="submit" className="bg-cyan-500 text-black px-6 rounded-xl text-sm font-bold">Simpan URL</button>
-                    </div>
-                  </form>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+              <section className="bg-[#1e293b]/10 border border-gray-800 rounded-2xl p-6 space-y-4">
+                <h3 className="font-bold text-base flex items-center gap-2"><ImageIcon size={18} className="text-cyan-400"/> Sinkronisasi Avatar Skin</h3>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Ganti URL Gambar / Nick Premium</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={inputPremiumName} onChange={(e) => setInputPremiumName(e.target.value)} placeholder="Contoh URL atau Nick..." className="flex-1 bg-[#0f0f13] border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-cyan-500" />
+                    <button onClick={handleApplyPremiumSkin} className="bg-cyan-500 text-black font-bold px-4 py-2 rounded-xl text-xs hover:bg-cyan-400 transition-colors">Terapkan</button>
+                  </div>
                 </div>
               </section>
 
-              <section className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6">
-                <h3 className="font-bold mb-4 flex items-center gap-2"><Bell size={18} className="text-cyan-400"/> Notifikasi</h3>
-                <div className="flex justify-between items-center text-sm">
-                  <span>Notifikasi Promo & Diskon</span>
-                  <button onClick={() => setNotif(!notif)} className={`w-10 h-5 rounded-full relative transition-colors ${notif ? 'bg-cyan-500' : 'bg-gray-700'}`}>
-                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${notif ? 'left-6' : 'left-1'}`}></div>
-                  </button>
-                </div>
+              <section className="bg-[#1e293b]/10 border border-gray-800 rounded-2xl p-6 flex justify-between items-center text-sm">
+                <h3 className="font-bold flex items-center gap-2"><Bell size={18} className="text-cyan-400"/> Notifikasi Sistem</h3>
+                <button onClick={() => setNotif(!notif)} className={`w-10 h-5 rounded-full relative transition-colors ${notif ? 'bg-cyan-500' : 'bg-gray-700'}`}>
+                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${notif ? 'left-6' : 'left-1'}`}></div>
+                </button>
               </section>
-              
-              <section className="bg-[#1e293b]/30 border border-gray-800 rounded-2xl p-6">
-                <h3 className="font-bold mb-4 flex items-center gap-2"><Lock size={18} className="text-cyan-400"/> Keamanan</h3>
-                <input type="password" placeholder="Password Baru" className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl px-4 py-3 text-sm mb-4 outline-none focus:border-cyan-500" />
-                <button className="bg-[#1e293b] text-white px-6 py-2 rounded-xl text-sm border border-gray-700 hover:bg-gray-700 transition-colors">Update Password</button>
-              </section>
-              
-              <button className="w-full bg-cyan-500 text-black hover:bg-cyan-400 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-transform active:scale-95"><Save size={20}/> Simpan Perubahan Akun</button>
             </div>
           )}
         </div>
+
       </div>
     </div>
   );

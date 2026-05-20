@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, ShoppingCart, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Crown, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Mengimpor library Swiper untuk efek 3D Coverflow Card & Navigasi
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -11,17 +11,17 @@ import 'swiper/css/pagination';
 import 'swiper/css/navigation';
 
 import useProducts from '../hooks/useProducts';
-import { createInvoice, updateInvoiceStatus } from '../services/invoicesService';
-import gambarQris from '../assets/qris.jpg';
+import type { Product } from '../types/product';
 
 // MENERIMA PROPS DARI PARENT COMPONENT (Store.tsx)
-type KatalogPremiumProps = {
-  premiumProducts?: any[];
-};
+interface KatalogPremiumProps {
+  premiumProducts?: Product[];
+  onBuyProduct?: (product: Product) => void;
+}
 
-export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps) {
+export default function KatalogPremium({ premiumProducts, onBuyProduct }: KatalogPremiumProps) {
   // ========================================================
-  // STATE RADAR PENDETEKSI UKURAN LAYAR HP / PC (YANG HILANG)
+  // STATE RADAR PENDETEKSI UKURAN LAYAR HP / PC
   // ========================================================
   const [isMobile, setIsMobile] = useState(false);
 
@@ -31,59 +31,17 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  // ========================================================
 
   const handleAddToCart = (e: React.MouseEvent, productName: string) => {
     e.stopPropagation(); 
     alert(`Berhasil menambahkan ${productName} ke Keranjang!`);
   };
 
-  // Tetap panggil useProducts sebagai fallback jika dipanggil tanpa props (misal di Home.tsx)
+  // Memanfaatkan fallback useProducts jika prop tidak diberikan
   const { products } = useProducts();
   
-  // LOGIKA UTAMA: Jika ada data dari props, pakai itu. Jika tidak, filter mandiri.
-  const displayProducts = premiumProducts || (products || []).filter((p: any) => p.is_premium === true);
-
-  const [currentInvoice, setCurrentInvoice] = useState<any | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [invoiceLoading, setInvoiceLoading] = useState(false);
-
-  const handleBuy = async (product: any) => {
-    try {
-      setInvoiceLoading(true);
-      const inv = await createInvoice({ product_id: product.id, price: product.price, quantity: 1, metadata: { productName: product.name } });
-      setCurrentInvoice({ ...inv, product });
-      setModalOpen(true);
-    } catch (e: any) {
-      alert('Gagal membuat invoice: ' + (e.message || String(e)));
-    } finally {
-      setInvoiceLoading(false);
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!currentInvoice) return;
-    try {
-      await updateInvoiceStatus(currentInvoice.id, 'canceled');
-      setCurrentInvoice((c: any) => ({ ...c, status: 'canceled' }));
-      alert('Pesanan dibatalkan.');
-      setModalOpen(false);
-    } catch (e: any) {
-      alert('Gagal membatalkan: ' + (e.message || String(e)));
-    }
-  };
-
-  const handlePaid = async () => {
-    if (!currentInvoice) return;
-    try {
-      await updateInvoiceStatus(currentInvoice.id, 'waiting_confirmation');
-      setCurrentInvoice((c: any) => ({ ...c, status: 'waiting_confirmation' }));
-      alert('Terima kasih — admin sedang memeriksa bukti pembayaran.');
-      setModalOpen(false);
-    } catch (e: any) {
-      alert('Gagal update status: ' + (e.message || String(e)));
-    }
-  };
+  // LOGIKA UTAMA: Jika ada data dari props, pakai itu. Jika tidak, lakukan penyaringan (filter) mandiri.
+  const displayProducts = premiumProducts || (products || []).filter((p: Product) => p.is_premium === true);
 
   return (
     <section className="relative w-full max-w-7xl mx-auto py-12 px-2 md:px-12 lg:px-20 overflow-hidden">
@@ -150,9 +108,9 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
         .front-actions { border-top: 1px solid rgba(61, 61, 61, 0.5); padding-top: 15px; margin-top: auto; display: flex; flex-direction: column; gap: 10px; z-index: 30; position: relative; }
         .price-tag { font-size: 20px; font-weight: bold; color: white; text-align: center; } 
         .front-btn-group { display: flex; gap: 10px; width: 100%; }
-        .btn-beli-front { flex: 1; background: #22d3ee; color: black; font-weight: bold; padding: 12px; border-radius: 8px; transition: 0.2s; text-transform: uppercase; font-size: 12px; }
+        .btn-beli-front { flex: 1; background: #22d3ee; color: black; font-weight: bold; padding: 12px; border-radius: 8px; transition: 0.2s; text-transform: uppercase; font-size: 12px; cursor: pointer; }
         .btn-beli-front:hover { background: #67e8f9; box-shadow: 0 0 15px rgba(34,211,238,0.5); }
-        .btn-cart-front { flex: 1; background: transparent; border: 1px solid #22d3ee; color: #22d3ee; font-weight: bold; padding: 12px; border-radius: 8px; transition: 0.2s; text-transform: uppercase; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px;}
+        .btn-cart-front { flex: 1; background: transparent; border: 1px solid #22d3ee; color: #22d3ee; font-weight: bold; padding: 12px; border-radius: 8px; transition: 0.2s; text-transform: uppercase; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer;}
         .btn-cart-front:hover { background: rgba(34,211,238,0.1); }
         
         .back-content { padding: 30px 25px; display: flex; flex-direction: column; height: 100%; z-index: 2; position: relative; }
@@ -231,32 +189,23 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
           Katalog <span className="text-cyan-400">Premium</span>
         </h1>
         
-        {/* PARAGRAF DENGAN HIGHLIGHT WARNA */}
         <p className="text-gray-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
           Solusi lengkap buat <span className="text-white font-medium">upgrade pengalaman main</span> lo. Temukan deretan produk unggulan kami: <span className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors cursor-default">Rank premium</span>, <span className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors cursor-default">item esensial</span>, <span className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors cursor-default">jasa setting server</span>, sampai <span className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors cursor-default">pembuatan plugin</span> dari nol.
         </p>
 
-        {/* BADGE INSTRUKSI HUD STYLE DENGAN PULSING BEACON */}
         <div className="mt-6 inline-flex items-center gap-3 bg-gradient-to-r from-cyan-500/10 via-[#0d0d0f] to-cyan-500/10 border border-cyan-500/30 rounded-full px-6 py-2.5 shadow-[0_0_15px_rgba(34,211,238,0.15)] relative overflow-hidden">
-          
-          {/* Animasi Titik Radar (Beacon) */}
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500 shadow-[0_0_8px_#22d3ee]"></span>
           </span>
-          
-          {/* Teks Instruksi */}
           <span className="text-cyan-300 text-[10px] sm:text-[11px] font-bold tracking-[0.2em] uppercase">
             Klik Kartu Untuk Detail
           </span>
-          
-          {/* Garis Kilap (Glow Line) di bawah badge */}
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50"></div>
         </div>
       </div>
 
       <div className="relative w-full">
-        {/* Tombol Navigasi Kustom */}
         <button className="custom-swiper-button-prev absolute left-0 top-1/2 -translate-y-1/2 hidden md:flex items-center justify-center text-cyan-400 bg-black/60 border border-cyan-500/30 w-12 h-12 rounded-full hover:bg-cyan-500 hover:text-black hover:border-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition-all z-30">
           <ChevronLeft size={24} />
         </button>
@@ -265,9 +214,7 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
         </button>
 
         <Swiper
-          /* INI DIA PECUTNYA: Paksa Swiper restart tiap ukuran layar ganti */
           key={isMobile ? 'mobile' : 'desktop'} 
-          
           effect={'coverflow'}
           grabCursor={true}
           centeredSlides={true}
@@ -296,7 +243,6 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
                 <div className="ec-card">
                   <label htmlFor={`flip-slider-${product.id}`} className="card-click-area" title="Klik untuk lihat detail di belakang"></label>
 
-                  {/* SISI DEPAN KARTU */}
                   <div className="ec-card-face ec-card-front">
                     <div className="card-header">
                       <span className="card-brand">EDELWEISS</span>
@@ -318,8 +264,8 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
                       <div className="front-actions">
                         <div className="price-tag">Rp {product?.price?.toLocaleString('id-ID')}</div>
                         <div className="front-btn-group">
-                          <button onClick={() => handleBuy(product)} className="btn-beli-front" disabled={invoiceLoading}>
-                            {invoiceLoading ? 'Membuat...' : 'Beli Langsung'}
+                          <button onClick={() => onBuyProduct && onBuyProduct(product)} className="btn-beli-front">
+                            Beli Langsung
                           </button>
                           <button onClick={(e) => handleAddToCart(e, product.name)} className="btn-cart-front">
                             <ShoppingCart size={14} /> Add Card
@@ -329,7 +275,6 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
                     </div>
                   </div>
 
-                  {/* SISI BELAKANG KARTU */}
                   <div className="ec-card-face ec-card-back">
                     <div className="back-content">
                       <div className="back-title">{product.name}</div>
@@ -337,21 +282,21 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
                       <div className="stats-grid">
                         <div className="stat-item">
                           <span className="stat-label">Durasi</span>
-                          <span className="stat-value">{product.stats?.durasi || 'Permanen'}</span>
+                          <span className="stat-value">{(product as any).stats?.durasi || 'Permanen'}</span>
                         </div>
                         <div className="stat-item">
                           <span className="stat-label">Akses Kit</span>
-                          <span className="stat-value">{product.stats?.kit || 'Sesuai Rank'}</span>
+                          <span className="stat-value">{(product as any).stats?.kit || 'Sesuai Rank'}</span>
                         </div>
                         <div className="stat-item">
                           <span className="stat-label">Kelebihan</span>
-                          <span className="stat-value">{product.stats?.kelebihan || 'Akses Fitur Premium'}</span>
+                          <span className="stat-value">{(product as any).stats?.kelebihan || 'Akses Fitur Premium'}</span>
                         </div>
                       </div>
 
                       <div className="buy-btn-container">
-                        <button onClick={() => handleBuy(product)} className="buy-btn" disabled={invoiceLoading}>
-                          {invoiceLoading ? 'Membuat Invoice...' : 'Lanjut Beli'}
+                        <button onClick={() => onBuyProduct && onBuyProduct(product)} className="buy-btn">
+                          Lanjut Beli
                         </button>
                       </div>
                     </div>
@@ -368,32 +313,6 @@ export default function KatalogPremium({ premiumProducts }: KatalogPremiumProps)
           )}
         </Swiper>
       </div>
-
-      {/* MODAL QRIS CHECKOUT (KATALOG) */}
-      {modalOpen && currentInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in transition-all">
-          <div className="bg-[#101014] border-2 border-[#3d3d3d] rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_80px_rgba(34,211,238,0.2)] relative">
-            <button onClick={() => { setModalOpen(false); setCurrentInvoice(null); }} className="absolute top-5 right-5 text-gray-400 hover:text-white transition-colors z-20 p-1.5 bg-[#1a1a24] rounded-full"><X size={20} /></button>
-            <div className="p-6 border-b border-[#3d3d3d]/50 bg-[#1a1a24]/50 relative">
-              <div className="absolute inset-0 bg-cyan-500/5 blur-xl"></div>
-              <h3 className="text-xl md:text-2xl font-extrabold relative z-10 text-white tracking-tight">Invoice #{currentInvoice.id}</h3>
-              <p className="text-sm text-gray-400 relative z-10">Item: <span className="text-cyan-400 font-bold uppercase tracking-wider">{currentInvoice.product?.name}</span></p>
-            </div>
-            <div className="p-7">
-              <div className="flex flex-col items-center mb-6 p-5 bg-white rounded-2xl shadow-inner border-2 border-gray-200">
-                <p className="text-black font-extrabold text-sm mb-3 text-center uppercase tracking-wider">Scan QRIS</p>
-                <img src={gambarQris} alt="QRIS Edelweiss Craft" className="w-85 h-85 object-contain mb-3 border-2 border-gray-200 rounded-lg p-1 bg-white" />
-                <p className="text-black text-2xl font-black tracking-tight">Rp {Number(currentInvoice.price).toLocaleString('id-ID')}</p>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={handleCancel} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold">Batalkan Pesanan</button>
-                <button onClick={handlePaid} className="flex-1 py-3 rounded-xl bg-cyan-500 text-black font-bold">Saya Sudah Membayar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </section>
   );
 }

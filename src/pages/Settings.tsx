@@ -263,17 +263,32 @@ export default function Settings() {
     }
   };
 
+  /**
+   * Melakukan pembaruan status tiket dengan pendekatan Optimistic UI.
+   * State akan diperbarui secara instan sebelum pemanggilan fungsi asinkron (API) selesai.
+   */
   const handleAdminTicketAction = async (action: 'success' | 'canceled') => {
     if (!selectedAdminTicket) return;
     if (!confirm(`Yakin ingin mengubah status menjadi ${action}?`)) return;
+    
+    // Menyimpan backup status lama untuk antisipasi jika request ke database gagal
+    const previousStatus = selectedAdminTicket.status;
+    
+    // Melakukan pembaruan secara instan pada antarmuka pengguna (Optimistic UI)
+    setSelectedAdminTicket({ ...selectedAdminTicket, status: action });
+    
     try {
       await supabase.from('tickets').update({ status: action }).eq('id', selectedAdminTicket.id);
       await supabase.from('ticket_messages').insert({ 
         ticket_id: selectedAdminTicket.id, 
         sender_type: 'system', 
-        message: action === 'success' ? '✅ Admin telah memverifikasi pembayaran. Pesanan selesai.' : '❌ Pesanan dibatalkan / ditolak oleh Admin.' 
+        message: action === 'success' 
+          ? '✅ Admin telah memverifikasi pembayaran. Pesanan selesai.' 
+          : '❌ Pesanan dibatalkan / ditolak oleh Admin.' 
       });
     } catch (e) {
+      // Mengembalikan status pada antarmuka seperti semula jika terjadi kesalahan pada proses basis data
+      setSelectedAdminTicket({ ...selectedAdminTicket, status: previousStatus });
       console.error('Gagal update status tiket:', e);
     }
   };

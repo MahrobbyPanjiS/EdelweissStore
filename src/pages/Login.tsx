@@ -1,8 +1,51 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { User, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User, Lock, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import { useNotif } from '../context/NotifContext';
 
 export default function Login() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const navigate = useNavigate();
+  const { showNotif } = useNotif();
+
+  /**
+   * Menangani proses login menggunakan Supabase Auth.
+   * Menggunakan format email buatan (@edelweiss.local) untuk melewati validasi email Supabase,
+   * karena antarmuka hanya meminta Username Minecraft.
+   */
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password) return;
+    
+    setLoading(true);
+    try {
+      // Memformat username menjadi format email standar untuk autentikasi Supabase
+      const emailFormat = `${username.trim().toLowerCase()}@edelweiss.local`;
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailFormat,
+        password: password,
+      });
+
+      if (error) throw error;
+
+      showNotif(`Berhasil masuk! Selamat datang kembali, ${username}.`, 'success');
+      
+      // Mengarahkan pengguna kembali ke halaman utama atau store setelah berhasil masuk
+      navigate('/store');
+    } catch (error: any) {
+      showNotif(error.message === 'Invalid login credentials' 
+        ? 'Username atau password salah!' 
+        : `Gagal login: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto py-24 px-6 animate-in fade-in duration-500">
       <div className="bg-[#1e293b]/30 border border-gray-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
@@ -25,7 +68,7 @@ export default function Login() {
           </div>
         </div>
 
-        <form className="space-y-5 relative z-10" onSubmit={(e) => { e.preventDefault(); alert("Simulasi Login Berhasil!"); }}>
+        <form className="space-y-5 relative z-10" onSubmit={handleLogin}>
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Username Minecraft</label>
             <div className="relative">
@@ -35,6 +78,8 @@ export default function Login() {
               <input 
                 type="text" 
                 required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 placeholder="Contoh: Mahrobby" 
                 className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-white placeholder-gray-600"
               />
@@ -53,14 +98,24 @@ export default function Login() {
               <input 
                 type="password" 
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••" 
                 className="w-full bg-[#0f0f13] border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-white placeholder-gray-600"
               />
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 mt-4">
-            Masuk Sekarang <ArrowRight size={18} />
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-500/50 disabled:cursor-not-allowed text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 mt-4"
+          >
+            {loading ? (
+              <><Loader2 size={18} className="animate-spin" /> Memproses...</>
+            ) : (
+              <>Masuk Sekarang <ArrowRight size={18} /></>
+            )}
           </button>
         </form>
 
