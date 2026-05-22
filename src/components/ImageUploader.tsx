@@ -1,6 +1,6 @@
 // [code lama + code hasil pembaharuan = code update]
 import React, { useState, useRef } from 'react';
-import type { DragEvent, ChangeEvent } from 'react';
+// Import 'DragEvent' dan 'ChangeEvent' secara terpisah dihapus untuk menghindari error TS1484 pada verbatimModuleSyntax
 import supabase from '../lib/supabaseClient';
 
 type Props = {
@@ -39,7 +39,8 @@ export default function ImageUploader({ onUpload, bucket = 'product_images', fol
     if (f) handleFile(f);
   };
 
-  const onDrop = (e: DragEvent) => {
+  // Menggunakan React.DragEvent secara eksplisit agar tipe data dikenali dengan benar tanpa memicu peringatan modul
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const f = e.dataTransfer.files && e.dataTransfer.files[0];
     if (f) handleFile(f);
