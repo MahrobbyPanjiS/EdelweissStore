@@ -1,3 +1,4 @@
+// [code lama + code hasil pembaharuan = code update]
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Wallet, Calendar, History, Crown, Loader2, ImageIcon, Bell, User, LogIn, UserPlus, MapPin } from 'lucide-react';
@@ -119,8 +120,16 @@ export default function Profile() {
       });
 
       skinContainerRef.current.appendChild(viewer.canvas);
-      if (IdleAnimation) viewer.animations.add(IdleAnimation);
-      if (WalkingAnimation) viewer.animations.add(WalkingAnimation);
+      
+      // Memperbaiki pemanggilan API skinview3d: Menggunakan properti 'animation' (tanpa 's') dan menginisialisasi kelas animasi baru
+      if (IdleAnimation) {
+        viewer.animation = new IdleAnimation();
+      }
+      // Jika ingin menggunakan animasi berjalan, Anda dapat menghapus komentar pada baris di bawah ini dan mengomentari baris IdleAnimation di atas
+      // if (WalkingAnimation) {
+      //   viewer.animation = new WalkingAnimation();
+      // }
+      
       viewer.autoRotate = true;
       viewer.autoRotateSpeed = 0.5;
 
