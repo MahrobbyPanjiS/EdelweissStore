@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // <-- Ditambahkan untuk routing dari Home ke Store
 
 // Mengimpor library Swiper untuk efek 3D Coverflow Card & Navigasi
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -24,6 +25,7 @@ export default function KatalogPremium({ premiumProducts, onBuyProduct }: Katalo
   // STATE RADAR PENDETEKSI UKURAN LAYAR HP / PC
   // ========================================================
   const [isMobile, setIsMobile] = useState(false);
+  const navigate = useNavigate(); // Memanggil fungsi navigasi
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -32,9 +34,30 @@ export default function KatalogPremium({ premiumProducts, onBuyProduct }: Katalo
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  /**
+   * Menangani aksi klik tombol Beli Langsung dan Lanjut Beli.
+   * Jika di Store (onBuyProduct ada), maka buka modal.
+   * Jika di Home (onBuyProduct tidak ada), lempar pengguna ke halaman Store.
+   */
+  const handleBuyClick = (product: Product) => {
+    if (onBuyProduct) {
+      onBuyProduct(product);
+    } else {
+      navigate('/store'); // Pindah ke halaman Store
+    }
+  };
+
+  /**
+   * Menangani aksi Add Card.
+   * Memeriksa konteks halaman (Store atau Home) dan merespon dengan sesuai.
+   */
   const handleAddToCart = (e: React.MouseEvent, productName: string) => {
     e.stopPropagation(); 
-    alert(`Berhasil menambahkan ${productName} ke Keranjang!`);
+    if (onBuyProduct) {
+      alert(`Berhasil menambahkan ${productName} ke Keranjang!`);
+    } else {
+      navigate('/store'); // Pindah ke halaman Store jika di-klik dari Home
+    }
   };
 
   // Memanfaatkan fallback useProducts jika prop tidak diberikan
@@ -264,7 +287,7 @@ export default function KatalogPremium({ premiumProducts, onBuyProduct }: Katalo
                       <div className="front-actions">
                         <div className="price-tag">Rp {product?.price?.toLocaleString('id-ID')}</div>
                         <div className="front-btn-group">
-                          <button onClick={() => onBuyProduct && onBuyProduct(product)} className="btn-beli-front">
+                          <button onClick={() => handleBuyClick(product)} className="btn-beli-front">
                             Beli Langsung
                           </button>
                           <button onClick={(e) => handleAddToCart(e, product.name)} className="btn-cart-front">
@@ -295,7 +318,7 @@ export default function KatalogPremium({ premiumProducts, onBuyProduct }: Katalo
                       </div>
 
                       <div className="buy-btn-container">
-                        <button onClick={() => onBuyProduct && onBuyProduct(product)} className="buy-btn">
+                        <button onClick={() => handleBuyClick(product)} className="buy-btn">
                           Lanjut Beli
                         </button>
                       </div>

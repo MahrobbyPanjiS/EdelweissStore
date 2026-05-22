@@ -35,43 +35,67 @@ export default function Profile() {
   const skinContainerRef = useRef<HTMLDivElement>(null);
   const { showNotif } = useNotif();
 
+  // Fungsi pembantu formal untuk memformat tanggal tiket dengan aman dari ancaman RangeError
+  const formatTicketDate = (dateStr: string) => {
+    if (!dateStr) return 'Tanggal tidak tersedia';
+    const parsedDate = new Date(dateStr);
+    return isNaN(parsedDate.getTime()) ? 'Tanggal tidak valid' : parsedDate.toLocaleString('id-ID');
+  };
+
   useEffect(() => {
     const fetchUserDataAndHistory = async () => {
       try {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        // Memeriksa status login dari localStorage berdasarkan sistem Google Apps Script
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        const localUserStr = localStorage.getItem('currentUser');
 
-        if (user) {
-          const meta = user.user_metadata || {};
-          
+        if (isLoggedIn === 'true' && localUserStr) {
+          const localUser = JSON.parse(localUserStr);
+          const currentUsername = localUser.username;
+
+          // Mengambil data profil tambahan dari tabel public.profiles di Supabase
+          const { data: profileData, error: profileErr } = await supabase
+            .from('profiles')
+            .select('*')
+            .ilike('username', currentUsername)
+            .single();
+
+          // Memaksa pengaturan status pengguna (currentUser) meskipun data profil tidak ditemukan.
+          // Hal ini mencegah layar "Belum Masuk Sesi" jika terjadi kegagalan sinkronisasi tabel.
           setCurrentUser({
-            username: meta.username || 'Player',
-            email: user.email || '',
-            role: meta.role || 'player',
-            kota: meta.kota || 'Tidak diatur',
-            skin_url: meta.skin_url || 'https://minotar.net/skin/Steve',
-            createdAt: new Date(user.created_at).toLocaleDateString('id-ID', {
+            username: currentUsername,
+            email: '', // Dikosongkan karena sistem baru tidak membutuhkan surel
+            role: profileData?.role || 'player',
+            kota: profileData?.kota || 'Tidak diatur',
+            skin_url: profileData?.skin_url || 'https://minotar.net/skin/Steve',
+            createdAt: profileData?.created_at ? new Date(profileData.created_at).toLocaleDateString('id-ID', {
               year: 'numeric',
               month: 'long',
               day: 'numeric'
-            })
+            }) : 'Baru Saja Bergabung'
           });
 
-          // Set URL skin sesuai data yang didaftarin
-          if (meta.skin_url) setSkinUrl(meta.skin_url);
+          // Mengatur URL skin 3D sesuai dengan data yang ditemukan
+          if (profileData?.skin_url) {
+            setSkinUrl(profileData.skin_url);
+          }
 
-          const { data: tickets, error: ticketErr } = await supabase
-            .from('tickets')
-            .select('id, ticket_code, product_name, price, status, created_at')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+          // Mengambil riwayat transaksi tiket pengguna hanya jika identitas (ID) Supabase ditemukan
+          if (profileData && profileData.id) {
+            const { data: tickets, error: ticketErr } = await supabase
+              .from('tickets')
+              .select('id, ticket_code, product_name, price, status, created_at')
+              .eq('user_id', profileData.id)
+              .order('created_at', { ascending: false });
 
-          if (!ticketErr && tickets) {
-            setTicketHistory(tickets as TicketHistory[]);
+            if (!ticketErr && tickets) {
+              setTicketHistory(tickets as TicketHistory[]);
+            }
           }
         }
       } catch (err) {
-        console.error('Gagal memuat data profil:', err);
+        console.error('Kesalahan saat memuat data profil:', err);
       } finally {
         setLoading(false);
       }
@@ -80,39 +104,50 @@ export default function Profile() {
     fetchUserDataAndHistory();
   }, []);
 
+  // Efek Hook untuk memuat 3D Skin Viewer dengan proteksi blok try...catch komprehensif
   useEffect(() => {
     if (!skinContainerRef.current || loading || !currentUser) return;
 
-    skinContainerRef.current.innerHTML = '';
+    try {
+      skinContainerRef.current.innerHTML = '';
 
-    const viewer = new SkinViewer({
-      canvas: document.createElement('canvas'),
-      width: 220,
-      height: 320,
-      skin: skinUrl
-    });
+      const viewer = new SkinViewer({
+        canvas: document.createElement('canvas'),
+        width: 220,
+        height: 320,
+        skin: skinUrl
+      });
 
-    skinContainerRef.current.appendChild(viewer.canvas);
-    viewer.animations.add(IdleAnimation);
-    viewer.animations.add(WalkingAnimation);
-    viewer.autoRotate = true;
-    viewer.autoRotateSpeed = 0.5;
+      skinContainerRef.current.appendChild(viewer.canvas);
+      if (IdleAnimation) viewer.animations.add(IdleAnimation);
+      if (WalkingAnimation) viewer.animations.add(WalkingAnimation);
+      viewer.autoRotate = true;
+      viewer.autoRotateSpeed = 0.5;
 
-    return () => {
-      viewer.dispose();
-    };
+      return () => {
+        viewer.dispose();
+      };
+    } catch (skinError) {
+      console.error('Gagal menginisialisasi 3D Skin Viewer secara aman:', skinError);
+    }
   }, [skinUrl, loading, currentUser]);
 
   const handleApplyPremiumSkin = async () => {
     if (!inputPremiumName.trim()) return showNotif('Masukkan nama premium terlebih dahulu!', 'error');
+    if (!currentUser) return;
     
     let newUrl = inputPremiumName.startsWith('http') ? inputPremiumName.trim() : `https://minotar.net/skin/${inputPremiumName.trim()}`;
     
-    // Update skin lokal dan simpan ke Supabase agar permanen
+    // Memperbarui tampilan skin secara lokal pada antarmuka
     setSkinUrl(newUrl);
-    await supabase.auth.updateUser({ data: { skin_url: newUrl } });
     
-    showNotif('Skin premium berhasil diupdate!', 'success');
+    // Menyimpan pembaruan URL skin secara permanen ke tabel profiles di Supabase
+    await supabase
+      .from('profiles')
+      .update({ skin_url: newUrl })
+      .eq('username', currentUser.username);
+    
+    showNotif('Skin premium berhasil diperbarui!', 'success');
     setInputPremiumName('');
   };
 
@@ -129,6 +164,7 @@ export default function Profile() {
     );
   }
 
+  // Jika state currentUser tetap null, tampilkan layar permintaan masuk
   if (!currentUser) {
     return (
       <div className="max-w-xl mx-auto py-20 px-6 animate-in fade-in duration-500">
@@ -216,7 +252,8 @@ export default function Profile() {
                             <span className="text-gray-500 text-xs">•</span>
                             <span className="text-xs text-gray-400 uppercase font-semibold">{ticket.product_name}</span>
                           </div>
-                          <p className="text-[10px] text-gray-600 mt-1">{new Date(ticket.created_at).toLocaleString('id-ID')}</p>
+                          {/* Penerapan pemformatan tanggal aman untuk mencegah kegagalan fatal rendering */}
+                          <p className="text-[10px] text-gray-600 mt-1">{formatTicketDate(ticket.created_at)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-bold text-white mb-1">Rp {Number(ticket.price).toLocaleString('id-ID')}</p>

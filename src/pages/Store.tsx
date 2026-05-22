@@ -65,12 +65,14 @@ export default function Store() {
 
   /**
    * Logika Pembelian Hybrid (Login vs Guest)
+   * Telah diperbarui untuk membaca status autentikasi dari localStorage (Sistem GAS)
    */
   const handleBuy = async (product: Product) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Mengecek sesi login melalui localStorage alih-alih menggunakan supabase.auth
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
     
     // Jika belum login, jangan di-redirect paksa. Tampilkan Pop-Up Opsi.
-    if (!user) {
+    if (isLoggedIn !== 'true') {
       setGuestModalProduct(product);
       return;
     }

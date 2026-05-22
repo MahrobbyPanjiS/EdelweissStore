@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Lock, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { api } from '../services/api'; // <-- Mengimpor API buatan kita
 import { useNotif } from '../context/NotifContext';
 
 export default function Login() {
@@ -13,9 +13,7 @@ export default function Login() {
   const { showNotif } = useNotif();
 
   /**
-   * Menangani proses login menggunakan Supabase Auth.
-   * Menggunakan format email buatan (@edelweiss.local) untuk melewati validasi email Supabase,
-   * karena antarmuka hanya meminta Username Minecraft.
+   * Menangani proses login menggunakan Google Apps Script (Sistem Pure ID).
    */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,24 +21,26 @@ export default function Login() {
     
     setLoading(true);
     try {
-      // Memformat username menjadi format email standar untuk autentikasi Supabase
-      const emailFormat = `${username.trim().toLowerCase()}@edelweiss.local`;
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email: emailFormat,
-        password: password,
-      });
+      // Memanggil fungsi login ke Google Apps Script
+      const res = await api.login(username.trim(), password);
 
-      if (error) throw error;
+      if (res.status === 'success') {
+        showNotif(`Berhasil masuk! Selamat datang kembali, ${username}.`, 'success');
+        
+        // Simpan sesi login di browser (karena kita ga pake Supabase Auth lagi)
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('currentUser', JSON.stringify({ 
+          username: username.trim(),
+          role: 'player' 
+        }));
 
-      showNotif(`Berhasil masuk! Selamat datang kembali, ${username}.`, 'success');
-      
-      // Mengarahkan pengguna kembali ke halaman utama atau store setelah berhasil masuk
-      navigate('/store');
+        // Mengarahkan pengguna kembali ke halaman utama atau store setelah berhasil masuk
+        navigate('/store');
+      } else {
+        throw new Error(res.message || 'Username atau password salah!');
+      }
     } catch (error: any) {
-      showNotif(error.message === 'Invalid login credentials' 
-        ? 'Username atau password salah!' 
-        : `Gagal login: ${error.message}`, 'error');
+      showNotif(error.message, 'error');
     } finally {
       setLoading(false);
     }

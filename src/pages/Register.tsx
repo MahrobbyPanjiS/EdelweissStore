@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Lock, AlertCircle, ArrowRight, CheckCircle2, Loader2, MapPin, ImageIcon } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { api } from '../services/api'; // <-- Mengimpor API buatan kita
 import { useNotif } from '../context/NotifContext';
 
 // Daftar kota besar sebagai rekomendasi (Bisa ditambahin lagi)
@@ -56,9 +57,8 @@ export default function Register() {
 
     setLoading(true);
     try {
-      // Trik bypass email Supabase
-      const sanitizedUsername = username.trim().replace(/\s+/g, '').toLowerCase();
-      const emailFormat = `${sanitizedUsername}@edelweiss.local`;
+      // DIBUANG .toLowerCase() AGAR HURUF BESAR/KECIL TETAP SESUAI KETIKAN
+      const sanitizedUsername = username.trim();
       
       // Logika pemrosesan Skin (Default vs Custom/Premium URL)
       let finalSkin = 'https://minotar.net/skin/Steve'; // Default jika dikosongkan
@@ -70,21 +70,28 @@ export default function Register() {
         }
       }
 
-      // Proses pendaftaran ke Supabase
-      const { error } = await supabase.auth.signUp({
-        email: emailFormat,
-        password: password,
-        options: {
-          data: {
-            username: username.trim(),
-            role: 'player',
-            skin_url: finalSkin,
-            kota: kota.trim() || 'Tidak diatur'
-          }
-        }
-      });
+      // 1. Simpan Akun (ID & Pass) ke Google Apps Script
+      const res = await api.register(sanitizedUsername, password);
+      
+      if (res.status === 'error') {
+        throw new Error(res.message || 'Nickname ini kemungkinan sudah terdaftar!');
+      }
 
-      if (error) throw error;
+      // 2. Simpan Data Profil Pendukung (Skin & Kota) ke database Supabase
+      // Catatan: Pastikan tabel profiles di Supabase RLS-nya memperbolehkan operasi INSERT secara publik/anonim
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .insert([{
+          username: sanitizedUsername,
+          role: 'player',
+          skin_url: finalSkin,
+          kota: kota.trim() || 'Tidak diatur'
+        }]);
+
+      if (dbError) {
+        console.warn('Gagal menyimpan profil ke Supabase, tapi akun GAS berhasil dibuat:', dbError);
+        // Kita tidak menolak registrasi jika hanya gagal insert profil tambahan
+      }
 
       showNotif('Pendaftaran berhasil! Silakan masuk dengan akun baru lo.', 'success');
       navigate('/login');
